@@ -1,5 +1,7 @@
-import TruckingProfitCalculator from "./TruckingProfitCalculator";
-
 export default function App() {
-  return <TruckingProfitCalculator />;
+  return (
+    <div style={{ padding: "40px", fontSize: "24px" }}>
+      Trucking calculator test is working
+    </div>
+  );
 }

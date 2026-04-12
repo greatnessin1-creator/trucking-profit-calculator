@@ -1,5 +1,4 @@
-import TruckingProfitCalculator from "./TruckingProfitCalculator";
-
+import TruckingProfitCalculator from "./truckingProfitCalculator";
 export default function App() {
   return <TruckingProfitCalculator />;
 }

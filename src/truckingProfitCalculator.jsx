@@ -1,17 +1,50 @@
 import { useEffect, useMemo, useState } from "react";
 
 const InputField = ({ label, value, setValue, step = "0.01", min = "0" }) => (
-  <label className="flex flex-col gap-1">
-    <span className="text-sm font-medium text-slate-700">{label}</span>
+  <label className="flex flex-col gap-1.5">
+    <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+      {label}
+    </span>
     <input
       type="number"
       value={value}
       min={min}
       step={step}
       onChange={(e) => setValue(e.target.value === "" ? "" : Number(e.target.value))}
-      className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-3 text-base shadow-sm outline-none focus:border-slate-500 sm:px-4"
+      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
     />
   </label>
+);
+
+const ToggleButton = ({ active, onClick, children }) => (
+  <button
+    onClick={onClick}
+    className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+      active ? "bg-slate-900 text-white shadow-sm" : "text-slate-700 hover:bg-white"
+    }`}
+  >
+    {children}
+  </button>
+);
+
+const StatCard = ({ label, value, sublabel, dark = false }) => (
+  <div
+    className={`rounded-2xl p-4 shadow-md ${
+      dark ? "bg-slate-900 text-white" : "bg-white text-slate-900"
+    }`}
+  >
+    <div
+      className={`text-[11px] font-semibold uppercase tracking-[0.08em] ${
+        dark ? "text-slate-300" : "text-slate-500"
+      }`}
+    >
+      {label}
+    </div>
+    <div className="mt-1 text-2xl font-bold sm:text-3xl">{value}</div>
+    {sublabel ? (
+      <div className={`mt-1 text-xs ${dark ? "text-slate-300" : "text-slate-500"}`}>{sublabel}</div>
+    ) : null}
+  </div>
 );
 
 const DEFAULTS = {
@@ -178,14 +211,18 @@ export default function TruckingProfitCalculator() {
     const computedLoadedMilesPerDay = Number(loadMiles) * Number(loadsPerDay);
     const loadedMilesPerDay =
       milesInputMode === "manual" ? Number(milesPerDay) : computedLoadedMilesPerDay;
+
     const totalMilesPerDay = loadedMilesPerDay + Number(deadheadMilesPerDay);
     const activeDaysPerWeek = Math.max(Number(daysPerWeek) || 0, 1);
     const projectionDays = calcViewMode === "single_load" ? 1 : activeDaysPerWeek;
+
     const weeklyLoadedMiles = loadedMilesPerDay * projectionDays;
     const weeklyMiles = totalMilesPerDay * projectionDays;
+
     const manualDailyGross = loadedMilesPerDay * Number(ratePerMile);
     const useDirectDailyPayout = Number(dailyLoadPayout) > 0;
     const dailyGross = useDirectDailyPayout ? Number(dailyLoadPayout) : manualDailyGross;
+
     const gross = dailyGross * projectionDays;
     const splitRevenue = gross * (Number(splitPercent) / 100);
 
@@ -203,23 +240,30 @@ export default function TruckingProfitCalculator() {
 
     const fuelCostPerMile = Number(fuelPrice) / Number(mpg || 1);
     const deadheadMilesWeekly = Number(deadheadMilesPerDay) * Number(daysPerWeek);
+
     const loadedFuelDaily = loadedMilesPerDay * fuelCostPerMile;
     const deadheadFuelDaily = Number(deadheadMilesPerDay) * fuelCostPerMile;
     const fuelDaily = totalMilesPerDay * fuelCostPerMile;
+
     const loadedFuelWeekly = weeklyLoadedMiles * fuelCostPerMile;
     const deadheadFuelWeekly = deadheadMilesWeekly * fuelCostPerMile;
     const fuelWeekly = weeklyMiles * fuelCostPerMile;
+
     const fixedDailyEquivalent = fixedWeekly / 7;
     const totalDailyCost = fixedDailyEquivalent + fuelDaily;
     const fixedCostForProjection = fixedDailyEquivalent * projectionDays;
     const totalWeeklyCost = fixedCostForProjection + fuelWeekly;
+
     const dailySplitRevenue = dailyGross * (Number(splitPercent) / 100);
     const dailyNet = dailySplitRevenue - totalDailyCost;
     const dailyPerDriverNet = mode === "team" ? dailyNet / 2 : dailyNet;
+
     const teamNet = splitRevenue - totalWeeklyCost;
     const perDriverNet = mode === "team" ? teamNet / 2 : teamNet;
+
     const effectiveRatePerLoadedMile = loadedMilesPerDay > 0 ? dailyGross / loadedMilesPerDay : 0;
     const effectiveRatePerTotalMile = totalMilesPerDay > 0 ? dailyGross / totalMilesPerDay : 0;
+
     const breakEvenRate =
       weeklyLoadedMiles > 0
         ? (fuelCostPerMile * weeklyMiles + fixedCostForProjection) /
@@ -240,6 +284,7 @@ export default function TruckingProfitCalculator() {
             weeklyLoadedMiles /
             (pct / 100)
           : 0;
+
       return {
         pct,
         dailyRevenueAfterSplit,
@@ -309,37 +354,39 @@ export default function TruckingProfitCalculator() {
 
   const getColor = () => {
     const net = results.dailyPerDriverNet;
-    if (net <= 0) return "from-red-500 to-red-700";
-    if (net < 300) return "from-orange-400 to-orange-600";
-    if (net < 700) return "from-yellow-400 to-yellow-600";
-    if (net < 1200) return "from-green-400 to-green-600";
-    return "from-blue-400 to-blue-600";
+    if (net <= 0) return "from-red-500 via-red-500 to-rose-700";
+    if (net < 300) return "from-orange-400 via-orange-400 to-amber-500";
+    if (net < 700) return "from-yellow-300 via-yellow-400 to-amber-500";
+    if (net < 1200) return "from-emerald-400 via-green-400 to-teal-500";
+    return "from-sky-400 via-blue-500 to-indigo-600";
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="sticky top-0 z-50 rounded-3xl bg-white/95 p-3 shadow-sm backdrop-blur sm:p-4">
+    <div className="space-y-3 sm:space-y-5">
+      <div className="sticky top-0 z-50 rounded-2xl border border-white/60 bg-white/90 p-3 shadow-md backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-semibold text-slate-900">Trucking Profit Calculator</div>
-            <div className="text-xs text-slate-500">Mobile control bar</div>
+            <div className="text-sm font-bold tracking-tight text-slate-900">
+              Trucking Profit Calculator
+            </div>
+            <div className="text-xs text-slate-500">Fast mobile calculator controls</div>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setIsCalculatorLoaded(true)}
-              className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm"
+              className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
             >
               Launch
             </button>
             <button
               onClick={() => setIsCalculatorLoaded(false)}
-              className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
             >
               Close
             </button>
             <button
               onClick={resetCalculator}
-              className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
             >
               Reset
             </button>
@@ -348,48 +395,46 @@ export default function TruckingProfitCalculator() {
       </div>
 
       {!isCalculatorLoaded ? (
-        <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-sm text-center">
-            <h1 className="text-2xl font-bold text-slate-900">Trucking Profit Calculator</h1>
-            <p className="mt-3 text-sm text-slate-600">
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-md">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              Trucking Profit Calculator
+            </h1>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
               Tap Launch in the top bar to open the calculator.
             </p>
           </div>
         </div>
       ) : (
         <div
-          className={`min-h-screen bg-gradient-to-br ${getColor()} p-3 sm:p-4 md:p-8 transition-all duration-500`}
+          className={`min-h-screen bg-gradient-to-br ${getColor()} p-3 transition-all duration-500 sm:p-4 md:p-6`}
         >
-          <div className="mx-auto max-w-md space-y-4 sm:max-w-2xl sm:space-y-6 xl:max-w-6xl">
-            <div className="rounded-3xl bg-white p-4 shadow-sm sm:p-6">
+          <div className="mx-auto max-w-sm space-y-3 px-1 sm:max-w-2xl sm:space-y-5 sm:px-0 xl:max-w-5xl">
+            <div className="rounded-2xl bg-white p-4 shadow-md sm:p-5">
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+                <div className="max-w-2xl">
+                  <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                     Trucking Profit Calculator
                   </h1>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Tap in your load rate or exact daily payout, choose either load math or manual
-                    miles, then see daily and weekly take-home instantly.
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    Plug in your rate, miles, deadhead, and cost structure. Compare one load or
+                    project the same pattern across your week.
                   </p>
                 </div>
+
                 <div className="flex flex-wrap items-center gap-3">
-                  <div className="inline-flex rounded-2xl border border-slate-300 bg-slate-50 p-1">
-                    <button
-                      onClick={() => setMode("solo")}
-                      className={`rounded-xl px-4 py-2 text-sm font-semibold ${mode === "solo" ? "bg-slate-900 text-white" : "text-slate-700"}`}
-                    >
+                  <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                    <ToggleButton active={mode === "solo"} onClick={() => setMode("solo")}>
                       Solo
-                    </button>
-                    <button
-                      onClick={() => setMode("team")}
-                      className={`rounded-xl px-4 py-2 text-sm font-semibold ${mode === "team" ? "bg-slate-900 text-white" : "text-slate-700"}`}
-                    >
+                    </ToggleButton>
+                    <ToggleButton active={mode === "team"} onClick={() => setMode("team")}>
                       Team
-                    </button>
+                    </ToggleButton>
                   </div>
+
                   <button
                     onClick={resetCalculator}
-                    className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
                   >
                     Reset
                   </button>
@@ -397,48 +442,60 @@ export default function TruckingProfitCalculator() {
               </div>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
-              <div className="space-y-6 rounded-3xl bg-white p-6 shadow-sm">
+            <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
+              <div className="rounded-2xl bg-white p-4 shadow-md sm:p-5">
                 <div>
-                  <h2 className="text-xl font-semibold text-slate-900">Load inputs</h2>
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <div className="inline-flex rounded-2xl border border-slate-300 bg-slate-50 p-1">
-                      <button
-                        onClick={() => setMilesInputMode("load_math")}
-                        className={`rounded-xl px-4 py-2 text-sm font-semibold ${milesInputMode === "load_math" ? "bg-slate-900 text-white" : "text-slate-700"}`}
-                      >
-                        Use load math
-                      </button>
-                      <button
-                        onClick={() => setMilesInputMode("manual")}
-                        className={`rounded-xl px-4 py-2 text-sm font-semibold ${milesInputMode === "manual" ? "bg-slate-900 text-white" : "text-slate-700"}`}
-                      >
-                        Use manual miles
-                      </button>
-                    </div>
-                    <div className="inline-flex rounded-2xl border border-slate-300 bg-slate-50 p-1">
-                      <button
-                        onClick={() => setCalcViewMode("single_load")}
-                        className={`rounded-xl px-4 py-2 text-sm font-semibold ${calcViewMode === "single_load" ? "bg-slate-900 text-white" : "text-slate-700"}`}
-                      >
-                        Single load
-                      </button>
-                      <button
-                        onClick={() => setCalcViewMode("project_week")}
-                        className={`rounded-xl px-4 py-2 text-sm font-semibold ${calcViewMode === "project_week" ? "bg-slate-900 text-white" : "text-slate-700"}`}
-                      >
-                        Project into week
-                      </button>
-                    </div>
+                  <h2 className="text-lg font-bold tracking-tight text-slate-900">Load inputs</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Choose how you want to calculate loaded miles and whether this is one load or a
+                    weekly projection.
+                  </p>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                    <ToggleButton
+                      active={milesInputMode === "load_math"}
+                      onClick={() => setMilesInputMode("load_math")}
+                    >
+                      Use load math
+                    </ToggleButton>
+                    <ToggleButton
+                      active={milesInputMode === "manual"}
+                      onClick={() => setMilesInputMode("manual")}
+                    >
+                      Use manual miles
+                    </ToggleButton>
+                  </div>
+
+                  <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                    <ToggleButton
+                      active={calcViewMode === "single_load"}
+                      onClick={() => setCalcViewMode("single_load")}
+                    >
+                      Single load
+                    </ToggleButton>
+                    <ToggleButton
+                      active={calcViewMode === "project_week"}
+                      onClick={() => setCalcViewMode("project_week")}
+                    >
+                      Project into week
+                    </ToggleButton>
                   </div>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-                  <InputField label="Rate per mile ($)" value={ratePerMile} setValue={setRatePerMile} />
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <InputField
+                    label="Rate per mile ($)"
+                    value={ratePerMile}
+                    setValue={setRatePerMile}
+                  />
                   <InputField
                     label="Direct daily load payout ($)"
                     value={dailyLoadPayout}
                     setValue={setDailyLoadPayout}
                   />
+
                   {milesInputMode === "load_math" ? (
                     <>
                       <InputField
@@ -462,6 +519,7 @@ export default function TruckingProfitCalculator() {
                       step="1"
                     />
                   )}
+
                   <InputField
                     label="Deadhead miles per day"
                     value={deadheadMilesPerDay}
@@ -489,12 +547,21 @@ export default function TruckingProfitCalculator() {
                 </div>
               </div>
 
-              <div className="space-y-6 rounded-3xl bg-white p-6 shadow-sm">
+              <div className="rounded-2xl bg-white p-4 shadow-md sm:p-5">
                 <div>
-                  <h2 className="text-xl font-semibold text-slate-900">Fixed costs</h2>
+                  <h2 className="text-lg font-bold tracking-tight text-slate-900">Fixed costs</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Weekly, monthly, and annual costs are automatically converted into the daily and
+                    projected math below.
+                  </p>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-                  <InputField label="Truck weekly ($)" value={truckWeekly} setValue={setTruckWeekly} />
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <InputField
+                    label="Truck weekly ($)"
+                    value={truckWeekly}
+                    setValue={setTruckWeekly}
+                  />
                   <InputField
                     label="Trailer weekly ($)"
                     value={trailerWeekly}
@@ -515,174 +582,177 @@ export default function TruckingProfitCalculator() {
                     value={tripPackMonthly}
                     setValue={setTripPackMonthly}
                   />
-                  <InputField label="ELD monthly ($)" value={eldMonthly} setValue={setEldMonthly} />
-                  <InputField label="Yearly fees ($)" value={yearlyFees} setValue={setYearlyFees} />
+                  <InputField
+                    label="ELD monthly ($)"
+                    value={eldMonthly}
+                    setValue={setEldMonthly}
+                  />
+                  <InputField
+                    label="Yearly fees ($)"
+                    value={yearlyFees}
+                    setValue={setYearlyFees}
+                  />
                 </div>
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5 xl:gap-4">
-              <div className="rounded-3xl bg-white p-5 shadow-sm">
-                <div className="text-sm text-slate-500">Daily loaded miles</div>
-                <div className="mt-2 text-3xl font-bold text-slate-900">
-                  {results.loadedMilesPerDay.toLocaleString()}
-                </div>
-                <div className="mt-1 text-xs text-slate-500">
-                  Total w/ deadhead: {results.totalMilesPerDay.toLocaleString()}
-                </div>
-              </div>
-              <div className="rounded-3xl bg-slate-900 p-5 text-white shadow-sm">
-                <div className="text-sm text-slate-300">Projected loaded miles</div>
-                <div className="mt-2 text-3xl font-bold">
-                  {results.weeklyLoadedMiles.toLocaleString()}
-                </div>
-                <div className="mt-1 text-xs text-slate-300">
-                  {results.projectionDays} day{results.projectionDays === 1 ? "" : "s"} · Total w/
-                  deadhead: {results.weeklyMiles.toLocaleString()}
-                </div>
-              </div>
-              <div className="rounded-3xl bg-white p-5 shadow-sm">
-                <div className="text-sm text-slate-500">Projected revenue</div>
-                <div className="mt-2 text-3xl font-bold text-slate-900">{fmt(results.gross)}</div>
-                <div className="mt-1 text-xs text-slate-500">
-                  Loaded rate: {fmt(results.effectiveRatePerLoadedMile)}/mi · Total rate:{" "}
-                  {fmt(results.effectiveRatePerTotalMile)}/mi
-                </div>
-              </div>
-              <div className="rounded-3xl bg-white p-5 shadow-sm">
-                <div className="text-sm text-slate-500">Projected after split</div>
-                <div className="mt-2 text-3xl font-bold text-slate-900">
-                  {fmt(results.splitRevenue)}
-                </div>
-              </div>
-              <div className="rounded-3xl bg-white p-5 shadow-sm">
-                <div className="text-sm text-slate-500">Break-even rate</div>
-                <div className="mt-2 text-3xl font-bold text-slate-900">
-                  {fmt(results.breakEvenRate)}/mi
-                </div>
-              </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <StatCard
+                label="Daily loaded miles"
+                value={results.loadedMilesPerDay.toLocaleString()}
+                sublabel={`Total w/ deadhead: ${results.totalMilesPerDay.toLocaleString()}`}
+              />
+              <StatCard
+                dark
+                label="Projected loaded miles"
+                value={results.weeklyLoadedMiles.toLocaleString()}
+                sublabel={`${results.projectionDays} day${
+                  results.projectionDays === 1 ? "" : "s"
+                } · Total w/ deadhead: ${results.weeklyMiles.toLocaleString()}`}
+              />
+              <StatCard
+                label="Projected revenue"
+                value={fmt(results.gross)}
+                sublabel={`Loaded rate: ${fmt(results.effectiveRatePerLoadedMile)}/mi · Total rate: ${fmt(
+                  results.effectiveRatePerTotalMile
+                )}/mi`}
+              />
+              <StatCard label="Projected after split" value={fmt(results.splitRevenue)} />
+              <StatCard label="Break-even rate" value={`${fmt(results.breakEvenRate)}/mi`} />
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
-              <div className="rounded-3xl bg-white p-4 shadow-sm sm:p-6">
-                <h3 className="text-lg font-semibold text-slate-900">Daily load view</h3>
+            <div className="grid gap-4 lg:grid-cols-3 lg:gap-5">
+              <div className="rounded-2xl bg-white p-4 shadow-md sm:p-5">
+                <h3 className="text-lg font-bold tracking-tight text-slate-900">Daily load view</h3>
                 <div className="mt-4 space-y-3 text-sm text-slate-700">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <span>Daily gross</span>
-                    <span>{fmt(results.dailyGross)}</span>
+                    <span className="font-medium">{fmt(results.dailyGross)}</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <span>Daily revenue after split</span>
-                    <span>{fmt(results.dailySplitRevenue)}</span>
+                    <span className="font-medium">{fmt(results.dailySplitRevenue)}</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <span>Fixed daily cost (1/7)</span>
-                    <span>{fmt(results.fixedDailyEquivalent)}</span>
+                    <span className="font-medium">{fmt(results.fixedDailyEquivalent)}</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <span>Deadhead miles daily</span>
-                    <span>{results.totalMilesPerDay - results.loadedMilesPerDay}</span>
+                    <span className="font-medium">
+                      {results.totalMilesPerDay - results.loadedMilesPerDay}
+                    </span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <span>Loaded fuel daily</span>
-                    <span>{fmt(results.loadedFuelDaily)}</span>
+                    <span className="font-medium">{fmt(results.loadedFuelDaily)}</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <span>Deadhead fuel daily</span>
-                    <span>{fmt(results.deadheadFuelDaily)}</span>
+                    <span className="font-medium">{fmt(results.deadheadFuelDaily)}</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <span>Total fuel daily</span>
-                    <span>{fmt(results.fuelDaily)}</span>
+                    <span className="font-medium">{fmt(results.fuelDaily)}</span>
                   </div>
-                  <div className="border-t pt-3 flex items-center justify-between font-semibold text-slate-900">
+                  <div className="flex items-center justify-between gap-4 border-t border-slate-200 pt-3 font-semibold text-slate-900">
                     <span>Daily net to {mode === "team" ? "team" : "driver"}</span>
                     <span>{fmt(results.dailyNet)}</span>
                   </div>
-                  <div className="flex items-center justify-between font-semibold text-slate-900">
+                  <div className="flex items-center justify-between gap-4 font-semibold text-slate-900">
                     <span>{mode === "team" ? "Daily net per driver" : "Daily take-home"}</span>
                     <span>{fmt(results.dailyPerDriverNet)}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-3xl bg-white p-4 shadow-sm sm:p-6">
-                <h3 className="text-lg font-semibold text-slate-900">Projected cost breakdown</h3>
+              <div className="rounded-2xl bg-white p-4 shadow-md sm:p-5">
+                <h3 className="text-lg font-bold tracking-tight text-slate-900">
+                  Projected cost breakdown
+                </h3>
                 <div className="mt-4 space-y-3 text-sm text-slate-700">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <span>Fixed weekly</span>
-                    <span>{fmt(results.fixedWeekly)}</span>
+                    <span className="font-medium">{fmt(results.fixedWeekly)}</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <span>Fixed daily (1/7)</span>
-                    <span>{fmt(results.fixedDailyEquivalent)}</span>
+                    <span className="font-medium">{fmt(results.fixedDailyEquivalent)}</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <span>Fixed in projection</span>
-                    <span>{fmt(results.fixedCostForProjection)}</span>
+                    <span className="font-medium">{fmt(results.fixedCostForProjection)}</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <span>Fuel per mile</span>
-                    <span>{fmt(results.fuelCostPerMile)}</span>
+                    <span className="font-medium">{fmt(results.fuelCostPerMile)}</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <span>Loaded fuel weekly</span>
-                    <span>{fmt(results.loadedFuelWeekly)}</span>
+                    <span className="font-medium">{fmt(results.loadedFuelWeekly)}</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <span>Deadhead fuel weekly</span>
-                    <span>{fmt(results.deadheadFuelWeekly)}</span>
+                    <span className="font-medium">{fmt(results.deadheadFuelWeekly)}</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <span>Total fuel weekly</span>
-                    <span>{fmt(results.fuelWeekly)}</span>
+                    <span className="font-medium">{fmt(results.fuelWeekly)}</span>
                   </div>
-                  <div className="border-t pt-3 flex items-center justify-between font-semibold text-slate-900">
+                  <div className="flex items-center justify-between gap-4 border-t border-slate-200 pt-3 font-semibold text-slate-900">
                     <span>Total weekly cost</span>
                     <span>{fmt(results.totalWeeklyCost)}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-3xl bg-white p-4 shadow-sm sm:p-6 lg:col-span-2">
-                <h3 className="text-lg font-semibold text-slate-900">Projected take-home</h3>
-                <div className="mt-4 grid gap-3 md:grid-cols-2 md:gap-4">
+              <div className="rounded-2xl bg-white p-4 shadow-md sm:p-5 lg:col-span-2">
+                <h3 className="text-lg font-bold tracking-tight text-slate-900">
+                  Projected take-home
+                </h3>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
                   <div className="rounded-2xl bg-slate-50 p-5">
-                    <div className="text-sm text-slate-500">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
                       Net to {mode === "team" ? "team" : "driver"}
                     </div>
                     <div className="mt-2 text-3xl font-bold text-slate-900">
                       {fmt(results.teamNet)}
                     </div>
                   </div>
+
                   <div className="rounded-2xl bg-slate-900 p-5 text-white">
-                    <div className="text-sm text-slate-300">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
                       {mode === "team" ? "Net per driver" : "Net take-home"}
                     </div>
                     <div className="mt-2 text-3xl font-bold">{fmt(results.perDriverNet)}</div>
                   </div>
                 </div>
-                <div className="mt-4 text-sm text-slate-500">
+
+                <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
                   {calcViewMode === "single_load"
                     ? "Single load mode evaluates one day only while still spreading fixed cost as 1/7 so you can judge that load cleanly."
                     : mode === "team"
-                      ? "Project into week repeats this same load pattern across the number of days entered and splits the final net in half per driver."
-                      : "Project into week repeats this same load pattern across the number of days entered to show full projected take-home."}
+                    ? "Project into week repeats this same load pattern across the number of days entered and splits the final net in half per driver."
+                    : "Project into week repeats this same load pattern across the number of days entered to show full projected take-home."}
                 </div>
               </div>
             </div>
 
-            <div className="rounded-3xl bg-white p-4 shadow-sm sm:p-6">
+            <div className="rounded-2xl bg-white p-4 shadow-md sm:p-5">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-900">Tier comparison</h3>
+                  <h3 className="text-lg font-bold tracking-tight text-slate-900">
+                    Tier comparison
+                  </h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    See all four payout tiers side by side using the same load, fuel, and cost inputs.
+                    Same load, same fuel, same cost inputs — all payout tiers side by side.
                   </p>
                 </div>
               </div>
+
               <div className="mt-5 hidden overflow-x-auto rounded-2xl md:block">
-                <table className="min-w-[900px] border-separate border-spacing-0 overflow-hidden rounded-2xl border border-slate-200">
+                <table className="min-w-[900px] overflow-hidden rounded-2xl border border-slate-200">
                   <thead>
                     <tr className="bg-slate-50 text-left text-sm text-slate-600">
                       <th className="px-4 py-3 font-semibold">Tier</th>
@@ -715,6 +785,7 @@ export default function TruckingProfitCalculator() {
                   </tbody>
                 </table>
               </div>
+
               <div className="mt-5 grid gap-3 md:hidden">
                 {results.tierRows.map((row) => (
                   <div
@@ -727,6 +798,7 @@ export default function TruckingProfitCalculator() {
                         {fmt(row.tierBreakEvenRate)}/mi
                       </div>
                     </div>
+
                     <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-slate-700">
                       <div>
                         <div className="text-slate-500">Daily after split</div>
@@ -760,7 +832,9 @@ export default function TruckingProfitCalculator() {
                         <div className="text-slate-500">
                           {mode === "team" ? "Net per driver" : "Take-home"}
                         </div>
-                        <div className="font-semibold text-slate-900">{fmt(row.tierPerDriverNet)}</div>
+                        <div className="font-semibold text-slate-900">
+                          {fmt(row.tierPerDriverNet)}
+                        </div>
                       </div>
                     </div>
                   </div>

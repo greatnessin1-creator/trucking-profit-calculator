@@ -172,18 +172,34 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [appError, setAppError] = useState("");
 
   useEffect(() => {
+    let mounted = true;
+
     const loadSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      try {
+        setLoading(true);
+        setAppError("");
 
-      setSession(session);
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
 
-      if (session?.user) {
-        await loadUserState(session.user.id);
-      } else {
+        if (error) throw error;
+        if (!mounted) return;
+
+        setSession(session);
+
+        if (session?.user) {
+          await loadUserState(session.user.id);
+        } else {
+          setLoading(false);
+        }
+      } catch (err) {
+        if (!mounted) return;
+        setAppError(err.message || "Failed to load session.");
         setLoading(false);
       }
     };
@@ -192,11 +208,13 @@ export default function App() {
 
     const {
       data: { subscription: authListener },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+
       setSession(session);
 
       if (session?.user) {
-        await loadUserState(session.user.id);
+        loadUserState(session.user.id);
       } else {
         setProfile(null);
         setSubscription(null);
@@ -205,31 +223,48 @@ export default function App() {
     });
 
     return () => {
+      mounted = false;
       authListener.unsubscribe();
     };
   }, []);
 
   const loadUserState = async (userId) => {
-    setLoading(true);
+    try {
+      setLoading(true);
+      setAppError("");
 
-    const [{ data: profileData }, { data: subscriptionData }] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-      supabase
-        .from("subscriptions")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
+      const [profileResult, subscriptionResult] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+        supabase
+          .from("subscriptions")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
-    setProfile(profileData || null);
-    setSubscription(subscriptionData || null);
-    setLoading(false);
+      if (profileResult.error) throw profileResult.error;
+      if (subscriptionResult.error) throw subscriptionResult.error;
+
+      setProfile(profileResult.data || null);
+      setSubscription(subscriptionResult.data || null);
+    } catch (err) {
+      console.error("loadUserState error:", err);
+      setAppError(err.message || "Failed to load user data.");
+      setProfile(null);
+      setSubscription(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    setSession(null);
+    setProfile(null);
+    setSubscription(null);
+    setLoading(false);
   };
 
   if (loading) {
@@ -242,13 +277,33 @@ export default function App() {
     );
   }
 
+  if (appError && session) {
+    return (
+      <div className="min-h-screen bg-slate-100 px-4 py-10">
+        <div className="mx-auto max-w-md rounded-2xl bg-white p-6 shadow-md">
+          <h1 className="text-xl font-bold text-slate-900">App error</h1>
+          <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+            {appError}
+          </p>
+          <button
+            onClick={handleLogout}
+            className="mt-4 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Log out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!session) {
     return <AuthScreen />;
   }
 
   const isTrial =
     subscription?.plan_name === "trial" ||
-    subscription?.status === "trialing";
+    subscription?.status === "trialing" ||
+    !subscription;
 
   return (
     <div className="relative">

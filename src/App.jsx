@@ -17,40 +17,19 @@ function AuthScreen() {
 
     try {
       if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              full_name: fullName || null,
+            },
+          },
         });
 
         if (error) throw error;
 
-        const user = data.user ?? data.session?.user;
-
-        if (user) {
-          const trialEndsAt = new Date();
-          trialEndsAt.setDate(trialEndsAt.getDate() + 7);
-
-          const { error: profileError } = await supabase.from("profiles").upsert({
-            id: user.id,
-            email: user.email,
-            full_name: fullName || null,
-          });
-
-          if (profileError) throw profileError;
-
-          const { error: subError } = await supabase.from("subscriptions").upsert({
-            user_id: user.id,
-            plan_name: "trial",
-            status: "trialing",
-            trial_ends_at: trialEndsAt.toISOString(),
-          });
-
-          if (subError) throw subError;
-        }
-
-        setMessage(
-          "Signup successful. Check your email if confirmation is required, then log in."
-        );
+        setMessage("Signup successful. You can now log in.");
         setMode("login");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -73,6 +52,7 @@ function AuthScreen() {
         <h1 className="text-2xl font-bold text-slate-900">
           {mode === "login" ? "Log in" : "Create account"}
         </h1>
+
         <p className="mt-2 text-sm text-slate-600">
           {mode === "login"
             ? "Access your trucking calculator account."
@@ -89,6 +69,7 @@ function AuthScreen() {
           >
             Login
           </button>
+
           <button
             type="button"
             onClick={() => setMode("signup")}
@@ -265,7 +246,9 @@ export default function App() {
     return <AuthScreen />;
   }
 
-  const isTrial = subscription?.plan_name === "trial" || subscription?.status === "trialing";
+  const isTrial =
+    subscription?.plan_name === "trial" ||
+    subscription?.status === "trialing";
 
   return (
     <div className="relative">
@@ -278,7 +261,8 @@ export default function App() {
               Trucking Profit Calculator
             </div>
             <div className="text-xs text-slate-500">
-              {profile?.email || session.user.email} · {subscription?.plan_name || "trial"}
+              {profile?.email || session.user.email} ·{" "}
+              {subscription?.plan_name || "trial"}
             </div>
           </div>
 

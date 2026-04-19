@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import TruckingProfitCalculator from "./truckingProfitCalculator";
 import { supabase } from "./lib/supabase";
 
@@ -12,12 +12,14 @@ function AuthScreen() {
 
   const handleAuth = async (e) => {
     e.preventDefault();
+    if (loading) return;
+
     setLoading(true);
     setMessage("");
 
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -29,7 +31,13 @@ function AuthScreen() {
 
         if (error) throw error;
 
-        setMessage("Signup successful. You can now log in.");
+        // Supabase may require email confirmation depending on project settings
+        if (data?.user && !data?.session) {
+          setMessage("Account created. Check your email to confirm your account, then log in.");
+        } else {
+          setMessage("Account created successfully. You are now signed in.");
+        }
+
         setMode("login");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -40,7 +48,7 @@ function AuthScreen() {
         if (error) throw error;
       }
     } catch (err) {
-      setMessage(err.message || "Something went wrong.");
+      setMessage(err?.message || "Something went wrong.");
     } finally {
       setLoading(false);
     }
@@ -56,13 +64,16 @@ function AuthScreen() {
         <p className="mt-2 text-sm text-slate-600">
           {mode === "login"
             ? "Access your trucking calculator account."
-            : "Start your 7-day TRIAL ONLY access."}
+            : "Start your access and save your numbers."}
         </p>
 
         <div className="mt-4 inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
           <button
             type="button"
-            onClick={() => setMode("login")}
+            onClick={() => {
+              setMode("login");
+              setMessage("");
+            }}
             className={`rounded-lg px-4 py-2 text-sm font-semibold ${
               mode === "login" ? "bg-slate-900 text-white" : "text-slate-700"
             }`}
@@ -72,7 +83,10 @@ function AuthScreen() {
 
           <button
             type="button"
-            onClick={() => setMode("signup")}
+            onClick={() => {
+              setMode("signup");
+              setMessage("");
+            }}
             className={`rounded-lg px-4 py-2 text-sm font-semibold ${
               mode === "signup" ? "bg-slate-900 text-white" : "text-slate-700"
             }`}
@@ -108,6 +122,7 @@ function AuthScreen() {
               className="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-slate-500"
               placeholder="you@example.com"
               required
+              autoComplete="email"
             />
           </div>
 
@@ -122,6 +137,7 @@ function AuthScreen() {
               className="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-slate-500"
               placeholder="Password"
               required
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
             />
           </div>
 
@@ -173,11 +189,72 @@ export default function App() {
   const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
   const [appError, setAppError] = useState("");
+  const mountedRef = useRef(true);
+  const requestIdRef = useRef(0);
+
+  const resetUserState = () => {
+    setProfile(null);
+    setSubscription(null);
+  };
+
+  const loadUserState = async (user) => {
+    if (!user?.id) {
+      resetUserState();
+      setLoading(false);
+      return;
+    }
+
+    const requestId = ++requestIdRef.current;
+
+    try {
+      setLoading(true);
+      setAppError("");
+
+      const [profileResult, subscriptionResult] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+        supabase
+          .from("subscriptions")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      if (!mountedRef.current || requestId !== requestIdRef.current) return;
+
+      if (profileResult.error) throw profileResult.error;
+      if (subscriptionResult.error) throw subscriptionResult.error;
+
+      setProfile(profileResult.data || {
+        id: user.id,
+        email: user.email || "",
+        full_name: user.user_metadata?.full_name || "",
+      });
+
+      setSubscription(subscriptionResult.data || null);
+    } catch (err) {
+      if (!mountedRef.current || requestId !== requestIdRef.current) return;
+
+      console.error("loadUserState error:", err);
+      setAppError(err?.message || "Failed to load user data.");
+      setProfile({
+        id: user.id,
+        email: user.email || "",
+        full_name: user.user_metadata?.full_name || "",
+      });
+      setSubscription(null);
+    } finally {
+      if (mountedRef.current && requestId === requestIdRef.current) {
+        setLoading(false);
+      }
+    }
+  };
 
   useEffect(() => {
-    let mounted = true;
+    mountedRef.current = true;
 
-    const loadSession = async () => {
+    const init = async () => {
       try {
         setLoading(true);
         setAppError("");
@@ -188,83 +265,56 @@ export default function App() {
         } = await supabase.auth.getSession();
 
         if (error) throw error;
-        if (!mounted) return;
+        if (!mountedRef.current) return;
 
         setSession(session);
 
         if (session?.user) {
-          await loadUserState(session.user.id);
+          await loadUserState(session.user);
         } else {
+          resetUserState();
           setLoading(false);
         }
       } catch (err) {
-        if (!mounted) return;
-        setAppError(err.message || "Failed to load session.");
+        if (!mountedRef.current) return;
+        setAppError(err?.message || "Failed to load session.");
+        resetUserState();
         setLoading(false);
       }
     };
 
-    loadSession();
+    init();
 
     const {
       data: { subscription: authListener },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
+    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      if (!mountedRef.current) return;
 
-      setSession(session);
+      setSession(newSession);
+      setAppError("");
 
-      if (session?.user) {
-        loadUserState(session.user.id);
+      if (newSession?.user) {
+        await loadUserState(newSession.user);
       } else {
-        setProfile(null);
-        setSubscription(null);
+        resetUserState();
         setLoading(false);
       }
     });
 
     return () => {
-      mounted = false;
-      authListener.unsubscribe();
+      mountedRef.current = false;
+      authListener?.unsubscribe();
     };
   }, []);
 
-  const loadUserState = async (userId) => {
+  const handleLogout = async () => {
     try {
-      setLoading(true);
-      setAppError("");
-
-      const [profileResult, subscriptionResult] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-        supabase
-          .from("subscriptions")
-          .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ]);
-
-      if (profileResult.error) throw profileResult.error;
-      if (subscriptionResult.error) throw subscriptionResult.error;
-
-      setProfile(profileResult.data || null);
-      setSubscription(subscriptionResult.data || null);
-    } catch (err) {
-      console.error("loadUserState error:", err);
-      setAppError(err.message || "Failed to load user data.");
-      setProfile(null);
-      setSubscription(null);
+      await supabase.auth.signOut();
     } finally {
+      setSession(null);
+      resetUserState();
       setLoading(false);
     }
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-    setProfile(null);
-    setSubscription(null);
-    setLoading(false);
   };
 
   if (loading) {
@@ -300,10 +350,11 @@ export default function App() {
     return <AuthScreen />;
   }
 
+  const planName = subscription?.plan_name || "trial";
   const isTrial =
     subscription?.plan_name === "trial" ||
     subscription?.status === "trialing" ||
-    !subscription;
+    subscription == null;
 
   return (
     <div className="relative">
@@ -316,8 +367,7 @@ export default function App() {
               Trucking Profit Calculator
             </div>
             <div className="text-xs text-slate-500">
-              {profile?.email || session.user.email} ·{" "}
-              {subscription?.plan_name || "trial"}
+              {(profile?.email || session?.user?.email || "Signed in user")} · {planName}
             </div>
           </div>
 
@@ -330,7 +380,12 @@ export default function App() {
         </div>
       </div>
 
-      <TruckingProfitCalculator />
+      <TruckingProfitCalculator
+        session={session}
+        profile={profile}
+        subscription={subscription}
+        isTrial={isTrial}
+      />
     </div>
   );
 }

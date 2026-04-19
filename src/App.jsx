@@ -201,7 +201,8 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [subscription, setSubscription] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [booting, setBooting] = useState(true);
+  const [userStateLoading, setUserStateLoading] = useState(false);
   const [appError, setAppError] = useState("");
   const mountedRef = useRef(true);
   const requestIdRef = useRef(0);
@@ -214,17 +215,27 @@ export default function App() {
   const loadUserState = async (user) => {
     if (!user?.id) {
       resetUserState();
-      setLoading(false);
+      setUserStateLoading(false);
       return;
     }
 
     const requestId = ++requestIdRef.current;
 
-    try {
-      setLoading(true);
-      setAppError("");
+    setUserStateLoading(true);
+    setAppError("");
 
-      const [profileResult, subscriptionResult] = await Promise.all([
+    const fallbackProfile = {
+      id: user.id,
+      email: user.email || "",
+      full_name: user.user_metadata?.full_name || "",
+    };
+
+    try {
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("User data request timed out.")), 10000)
+      );
+
+      const dataPromise = Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
         supabase
           .from("subscriptions")
@@ -235,34 +246,25 @@ export default function App() {
           .maybeSingle(),
       ]);
 
+      const [profileResult, subscriptionResult] = await Promise.race([dataPromise, timeout]);
+
       if (!mountedRef.current || requestId !== requestIdRef.current) return;
 
       if (profileResult.error) throw profileResult.error;
       if (subscriptionResult.error) throw subscriptionResult.error;
 
-      setProfile(
-        profileResult.data || {
-          id: user.id,
-          email: user.email || "",
-          full_name: user.user_metadata?.full_name || "",
-        }
-      );
-
+      setProfile(profileResult.data || fallbackProfile);
       setSubscription(subscriptionResult.data || null);
     } catch (err) {
       if (!mountedRef.current || requestId !== requestIdRef.current) return;
 
       console.error("loadUserState error:", err);
       setAppError(err?.message || "Failed to load user data.");
-      setProfile({
-        id: user.id,
-        email: user.email || "",
-        full_name: user.user_metadata?.full_name || "",
-      });
+      setProfile(fallbackProfile);
       setSubscription(null);
     } finally {
       if (mountedRef.current && requestId === requestIdRef.current) {
-        setLoading(false);
+        setUserStateLoading(false);
       }
     }
   };
@@ -272,7 +274,7 @@ export default function App() {
 
     const init = async () => {
       try {
-        setLoading(true);
+        setBooting(true);
         setAppError("");
 
         const {
@@ -286,16 +288,23 @@ export default function App() {
         setSession(session);
 
         if (session?.user) {
-          await loadUserState(session.user);
+          setProfile({
+            id: session.user.id,
+            email: session.user.email || "",
+            full_name: session.user.user_metadata?.full_name || "",
+          });
+          loadUserState(session.user);
         } else {
           resetUserState();
-          setLoading(false);
         }
       } catch (err) {
         if (!mountedRef.current) return;
         setAppError(err?.message || "Failed to load session.");
         resetUserState();
-        setLoading(false);
+      } finally {
+        if (mountedRef.current) {
+          setBooting(false);
+        }
       }
     };
 
@@ -303,17 +312,22 @@ export default function App() {
 
     const {
       data: { subscription: authListener },
-    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
       if (!mountedRef.current) return;
 
       setSession(newSession);
       setAppError("");
 
       if (newSession?.user) {
-        await loadUserState(newSession.user);
+        setProfile({
+          id: newSession.user.id,
+          email: newSession.user.email || "",
+          full_name: newSession.user.user_metadata?.full_name || "",
+        });
+        loadUserState(newSession.user);
       } else {
         resetUserState();
-        setLoading(false);
+        setUserStateLoading(false);
       }
     });
 
@@ -329,34 +343,16 @@ export default function App() {
     } finally {
       setSession(null);
       resetUserState();
-      setLoading(false);
+      setUserStateLoading(false);
+      setBooting(false);
     }
   };
 
-  if (loading) {
+  if (booting) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
         <div className="rounded-xl bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow">
           Loading...
-        </div>
-      </div>
-    );
-  }
-
-  if (appError && session) {
-    return (
-      <div className="min-h-screen bg-slate-100 px-4 py-10">
-        <div className="mx-auto max-w-md rounded-2xl bg-white p-6 shadow-md">
-          <h1 className="text-xl font-bold text-slate-900">App error</h1>
-          <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
-            {appError}
-          </p>
-          <button
-            onClick={handleLogout}
-            className="mt-4 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            Log out
-          </button>
         </div>
       </div>
     );
@@ -384,6 +380,7 @@ export default function App() {
             </div>
             <div className="text-xs text-slate-500">
               {(profile?.email || session?.user?.email || "Signed in user")} · {planName}
+              {userStateLoading ? " · syncing..." : ""}
             </div>
           </div>
 
@@ -395,6 +392,14 @@ export default function App() {
           </button>
         </div>
       </div>
+
+      {appError ? (
+        <div className="mx-auto mt-4 max-w-6xl px-4">
+          <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+            {appError}
+          </div>
+        </div>
+      ) : null}
 
       <TruckingProfitCalculator
         session={session}

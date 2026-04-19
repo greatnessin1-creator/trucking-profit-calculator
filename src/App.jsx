@@ -9,6 +9,7 @@ function AuthScreen() {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -31,7 +32,6 @@ function AuthScreen() {
 
         if (error) throw error;
 
-        // Supabase may require email confirmation depending on project settings
         if (data?.user && !data?.session) {
           setMessage("Account created. Check your email to confirm your account, then log in.");
         } else {
@@ -39,6 +39,7 @@ function AuthScreen() {
         }
 
         setMode("login");
+        setShowPassword(false);
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -73,6 +74,7 @@ function AuthScreen() {
             onClick={() => {
               setMode("login");
               setMessage("");
+              setShowPassword(false);
             }}
             className={`rounded-lg px-4 py-2 text-sm font-semibold ${
               mode === "login" ? "bg-slate-900 text-white" : "text-slate-700"
@@ -86,6 +88,7 @@ function AuthScreen() {
             onClick={() => {
               setMode("signup");
               setMessage("");
+              setShowPassword(false);
             }}
             className={`rounded-lg px-4 py-2 text-sm font-semibold ${
               mode === "signup" ? "bg-slate-900 text-white" : "text-slate-700"
@@ -130,15 +133,26 @@ function AuthScreen() {
             <label className="mb-1 block text-sm font-medium text-slate-700">
               Password
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-slate-500"
-              placeholder="Password"
-              required
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-            />
+
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 pr-20 outline-none focus:border-slate-500"
+                placeholder="Password"
+                required
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
 
           <button
@@ -226,11 +240,13 @@ export default function App() {
       if (profileResult.error) throw profileResult.error;
       if (subscriptionResult.error) throw subscriptionResult.error;
 
-      setProfile(profileResult.data || {
-        id: user.id,
-        email: user.email || "",
-        full_name: user.user_metadata?.full_name || "",
-      });
+      setProfile(
+        profileResult.data || {
+          id: user.id,
+          email: user.email || "",
+          full_name: user.user_metadata?.full_name || "",
+        }
+      );
 
       setSubscription(subscriptionResult.data || null);
     } catch (err) {

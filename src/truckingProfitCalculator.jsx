@@ -434,9 +434,7 @@ export default function TruckingProfitCalculator({
       milesInputMode === "manual" ? numMilesPerDay : computedLoadedMilesPerDay;
 
     const totalMilesPerDay = loadedMilesPerDay + numDeadheadMilesPerDay;
-
     const projectionDays = projectionMode === "single_load" ? 1 : numProjectionDays;
-
     const projectedLoadedMiles = loadedMilesPerDay * projectionDays;
     const projectedTotalMiles = totalMilesPerDay * projectionDays;
 
@@ -511,9 +509,6 @@ export default function TruckingProfitCalculator({
     const variableProjected =
       workProfile === "owner_operator" ? projectedTotalMiles * ownerOpVariableCostPerMile : 0;
 
-    const companyDriverDailyCost = 0;
-    const companyDriverProjectedCost = 0;
-
     const totalDailyCost =
       workProfile === "owner_operator"
         ? fixedDailyEquivalent +
@@ -521,7 +516,7 @@ export default function TruckingProfitCalculator({
           dispatcherFeeDaily +
           factoringFeeDaily +
           reserveDaily
-        : companyDriverDailyCost;
+        : 0;
 
     const totalProjectedCost =
       workProfile === "owner_operator"
@@ -530,7 +525,7 @@ export default function TruckingProfitCalculator({
           dispatcherFeeProjected +
           factoringFeeProjected +
           reserveProjected
-        : companyDriverProjectedCost;
+        : 0;
 
     const revenueBasisDaily =
       workProfile === "owner_operator" ? splitRevenueDaily : dailyGross;
@@ -658,11 +653,8 @@ export default function TruckingProfitCalculator({
       breakEvenRateLoadedMile,
       loadQuality,
       tierRows,
-      ownerOpFixedWeekly,
-      ownerOpVariableCostPerMile,
     };
   }, [
-    calculatorStyle,
     workProfile,
     mode,
     projectionMode,
@@ -784,36 +776,46 @@ export default function TruckingProfitCalculator({
         >
           <div className="mx-auto max-w-sm space-y-3 px-1 sm:max-w-2xl sm:space-y-5 sm:px-0 xl:max-w-6xl">
             <div className="rounded-2xl bg-white p-4 shadow-md sm:p-5">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                <div className="max-w-3xl">
-                  <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-                    {calculatorStyle === "basic" ? "Basic calculator" : "Advanced calculator"}
-                  </h1>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">
-                    {calculatorStyle === "basic"
-                      ? "Fast calculator for quick load and pay checks."
-                      : "Expanded calculator for owner-operators and company drivers with deeper controls."}
-                  </p>
+              <div className="text-center sm:text-left">
+                <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                  {calculatorStyle === "basic" ? "Basic calculator" : "Advanced calculator"}
+                </h1>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  {calculatorStyle === "basic"
+                    ? "Fast calculator for quick load and pay checks."
+                    : "Expanded calculator for owner-operators and company drivers with deeper controls."}
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white p-4 shadow-md sm:p-5">
+              <div className="flex flex-col gap-3">
+                <div>
+                  <div className="text-sm font-bold text-slate-900">Calculator style</div>
+                  <div className="text-xs text-slate-500">
+                    Choose the simple layout or the full expanded layout.
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
-                    <ToggleButton
-                      active={calculatorStyle === "basic"}
-                      onClick={() => setCalculatorStyle("basic")}
-                    >
-                      Basic style
-                    </ToggleButton>
-                    <ToggleButton
-                      active={calculatorStyle === "advanced"}
-                      onClick={() => setCalculatorStyle("advanced")}
-                    >
-                      Advanced style
-                    </ToggleButton>
-                  </div>
+                <div className="inline-flex w-full flex-wrap rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                  <ToggleButton
+                    active={calculatorStyle === "basic"}
+                    onClick={() => setCalculatorStyle("basic")}
+                  >
+                    Basic style
+                  </ToggleButton>
+                  <ToggleButton
+                    active={calculatorStyle === "advanced"}
+                    onClick={() => setCalculatorStyle("advanced")}
+                  >
+                    Advanced style
+                  </ToggleButton>
+                </div>
 
-                  {calculatorStyle === "advanced" && (
-                    <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                {calculatorStyle === "advanced" && (
+                  <div className="pt-1">
+                    <div className="mb-2 text-sm font-bold text-slate-900">Work profile</div>
+                    <div className="inline-flex w-full flex-wrap rounded-2xl border border-slate-200 bg-slate-50 p-1">
                       <ToggleButton
                         active={workProfile === "owner_operator"}
                         onClick={() => setWorkProfile("owner_operator")}
@@ -827,12 +829,14 @@ export default function TruckingProfitCalculator({
                         Company Driver
                       </ToggleButton>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
+            </div>
 
-              {calculatorStyle === "advanced" && (
-                <div className="mt-4 grid gap-3 xl:grid-cols-4">
+            {calculatorStyle === "advanced" && (
+              <div className="rounded-2xl bg-white p-4 shadow-md sm:p-5">
+                <div className="mt-0 grid gap-3 xl:grid-cols-4">
                   <AlertCard tone={qualityCard.tone} title={qualityCard.title}>
                     {qualityCard.body}
                   </AlertCard>
@@ -869,8 +873,8 @@ export default function TruckingProfitCalculator({
                     is {fmt(results.projectedAfterTaxPerDriver)}.
                   </AlertCard>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {calculatorStyle === "advanced" && (
               <div className="rounded-2xl bg-white p-4 shadow-md sm:p-5">
@@ -1107,9 +1111,7 @@ export default function TruckingProfitCalculator({
                     <h2 className="text-lg font-bold tracking-tight text-slate-900">
                       Owner-operator costs
                     </h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Full operating cost stack.
-                    </p>
+                    <p className="mt-1 text-sm text-slate-500">Full operating cost stack.</p>
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-3">

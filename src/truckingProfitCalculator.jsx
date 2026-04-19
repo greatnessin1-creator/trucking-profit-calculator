@@ -807,64 +807,7 @@ export default function TruckingProfitCalculator({
           className={`min-h-screen bg-gradient-to-br ${getColor()} p-3 transition-all duration-500 sm:p-4 md:p-6`}
         >
           <div className="mx-auto max-w-sm space-y-3 px-1 sm:max-w-2xl sm:space-y-5 sm:px-0 xl:max-w-6xl">
-            <div className="rounded-2xl bg-white p-4 shadow-md sm:p-5">
-              <div className="text-center sm:text-left">
-                <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-                  {calculatorStyle === "basic" ? "Basic calculator" : "Advanced calculator"}
-                </h1>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
-                  {calculatorStyle === "basic"
-                    ? "Fast calculator for quick load and pay checks."
-                    : "Expanded calculator for owner-operators and company drivers with deeper controls."}
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-white p-4 shadow-md sm:p-5">
-              <div className="flex flex-col gap-3">
-                <div>
-                  <div className="text-sm font-bold text-slate-900">Calculator style</div>
-                  <div className="text-xs text-slate-500">
-                    Choose the simple layout or the full expanded layout.
-                  </div>
-                </div>
-
-                <div className="inline-flex w-full flex-wrap rounded-2xl border border-slate-200 bg-slate-50 p-1">
-                  <ToggleButton
-                    active={calculatorStyle === "basic"}
-                    onClick={() => setCalculatorStyle("basic")}
-                  >
-                    Basic style
-                  </ToggleButton>
-                  <ToggleButton
-                    active={calculatorStyle === "advanced"}
-                    onClick={() => setCalculatorStyle("advanced")}
-                  >
-                    Advanced style
-                  </ToggleButton>
-                </div>
-
-                {calculatorStyle === "advanced" && (
-                  <div className="pt-1">
-                    <div className="mb-2 text-sm font-bold text-slate-900">Work profile</div>
-                    <div className="inline-flex w-full flex-wrap rounded-2xl border border-slate-200 bg-slate-50 p-1">
-                      <ToggleButton
-                        active={workProfile === "owner_operator"}
-                        onClick={() => setWorkProfile("owner_operator")}
-                      >
-                        Owner-Operator
-                      </ToggleButton>
-                      <ToggleButton
-                        active={workProfile === "company_driver"}
-                        onClick={() => setWorkProfile("company_driver")}
-                      >
-                        Company Driver
-                      </ToggleButton>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            
 
             {calculatorStyle === "advanced" && (
               <div className="rounded-2xl bg-white p-4 shadow-md sm:p-5">

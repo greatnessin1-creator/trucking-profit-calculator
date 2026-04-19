@@ -733,29 +733,61 @@ export default function TruckingProfitCalculator({
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setIsCalculatorLoaded(true)}
-              className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
-            >
-              Launch
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsCalculatorLoaded(false)}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-            >
-              Close
-            </button>
-            <button
-              type="button"
-              onClick={resetCalculator}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-            >
-              Reset
-            </button>
-          </div>
+          <div className="flex flex-wrap items-center gap-2">
+  <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+    <ToggleButton
+      active={calculatorStyle === "basic"}
+      onClick={() => setCalculatorStyle("basic")}
+    >
+      Basic style
+    </ToggleButton>
+    <ToggleButton
+      active={calculatorStyle === "advanced"}
+      onClick={() => setCalculatorStyle("advanced")}
+    >
+      Advanced style
+    </ToggleButton>
+  </div>
+
+  {calculatorStyle === "advanced" && (
+    <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+      <ToggleButton
+        active={workProfile === "owner_operator"}
+        onClick={() => setWorkProfile("owner_operator")}
+      >
+        Owner-Operator
+      </ToggleButton>
+      <ToggleButton
+        active={workProfile === "company_driver"}
+        onClick={() => setWorkProfile("company_driver")}
+      >
+        Company Driver
+      </ToggleButton>
+    </div>
+  )}
+
+  <button
+    type="button"
+    onClick={() => setIsCalculatorLoaded(true)}
+    className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+  >
+    Launch
+  </button>
+  <button
+    type="button"
+    onClick={() => setIsCalculatorLoaded(false)}
+    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+  >
+    Close
+  </button>
+  <button
+    type="button"
+    onClick={resetCalculator}
+    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+  >
+    Reset
+  </button>
+</div>
         </div>
       </div>
 

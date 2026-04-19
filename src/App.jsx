@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import TruckingProfitCalculator from "./truckingProfitCalculator";
 import { supabase } from "./lib/supabase";
+import { getUserPlan, ENTITLEMENTS } from "./lib/entitlements";
 
 const SESSION_CACHE_KEY = "trucking_profit_last_session_hint_v1";
 
@@ -246,6 +247,18 @@ function clearCachedSessionHint() {
   }
 }
 
+function isTrialActive(subscription) {
+  if (!subscription) return true;
+
+  if (subscription.status === "trialing") return true;
+
+  if (subscription.trial_ends_at) {
+    return new Date(subscription.trial_ends_at) > new Date();
+  }
+
+  return false;
+}
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(() => {
@@ -455,16 +468,16 @@ export default function App() {
     return <AuthScreen />;
   }
 
-  const planName = subscription?.plan_name || "trial";
+  const planName = getUserPlan(subscription);
+  const trialActive = isTrialActive(subscription);
+  const effectivePlan = trialActive ? "trial" : planName;
+  const userEntitlements = ENTITLEMENTS[effectivePlan];
+
   const activeEmail = profile?.email || session?.user?.email || "Signed in user";
-  const isTrial =
-    subscription?.plan_name === "trial" ||
-    subscription?.status === "trialing" ||
-    subscription == null;
 
   return (
     <div className="relative">
-      {isTrial && <TrialWatermark />}
+      {effectivePlan === "trial" && <TrialWatermark />}
 
       <div className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
@@ -473,7 +486,7 @@ export default function App() {
               Trucking Profit Calculator
             </div>
             <div className="text-xs text-slate-500">
-              {activeEmail} · {planName}
+              {activeEmail} · {effectivePlan}
               {hydratingUserState ? " · syncing..." : ""}
             </div>
           </div>
@@ -499,7 +512,8 @@ export default function App() {
         session={session}
         profile={profile}
         subscription={subscription}
-        isTrial={isTrial}
+        entitlements={userEntitlements}
+        plan={effectivePlan}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-const STORAGE_KEY = "trucking_profit_calculator_state_v3";
+const STORAGE_KEY = "trucking_profit_calculator_state_v4";
 
 const InputField = ({
   label,
@@ -85,7 +85,6 @@ const scenarioPresets = {
     loadMiles: 350,
     loadsPerDay: 1,
     milesPerDay: 350,
-    daysPerWeek: 5,
     projectionDaysInput: 5,
     deadheadMilesPerDay: 120,
     fuelPrice: 4.75,
@@ -97,7 +96,6 @@ const scenarioPresets = {
     loadMiles: 450,
     loadsPerDay: 1,
     milesPerDay: 450,
-    daysPerWeek: 6,
     projectionDaysInput: 6,
     deadheadMilesPerDay: 70,
     fuelPrice: 4.4,
@@ -109,7 +107,6 @@ const scenarioPresets = {
     loadMiles: 550,
     loadsPerDay: 1,
     milesPerDay: 550,
-    daysPerWeek: 6,
     projectionDaysInput: 6,
     deadheadMilesPerDay: 35,
     fuelPrice: 4.2,
@@ -129,7 +126,6 @@ const DEFAULTS = {
 
   ratePerMile: 5.0,
   milesPerDay: 500,
-  daysPerWeek: 7,
   splitPercent: 75,
 
   fuelPrice: 5.5,
@@ -189,7 +185,6 @@ export default function TruckingProfitCalculator({
 
   const [ratePerMile, setRatePerMile] = useState(DEFAULTS.ratePerMile);
   const [milesPerDay, setMilesPerDay] = useState(DEFAULTS.milesPerDay);
-  const [daysPerWeek, setDaysPerWeek] = useState(DEFAULTS.daysPerWeek);
   const [splitPercent, setSplitPercent] = useState(DEFAULTS.splitPercent);
 
   const [fuelPrice, setFuelPrice] = useState(DEFAULTS.fuelPrice);
@@ -235,7 +230,6 @@ export default function TruckingProfitCalculator({
         selectedScenario: setSelectedScenario,
         ratePerMile: setRatePerMile,
         milesPerDay: setMilesPerDay,
-        daysPerWeek: setDaysPerWeek,
         splitPercent: setSplitPercent,
         fuelPrice: setFuelPrice,
         mpg: setMpg,
@@ -280,7 +274,6 @@ export default function TruckingProfitCalculator({
       selectedScenario,
       ratePerMile,
       milesPerDay,
-      daysPerWeek,
       splitPercent,
       fuelPrice,
       mpg,
@@ -317,7 +310,6 @@ export default function TruckingProfitCalculator({
     selectedScenario,
     ratePerMile,
     milesPerDay,
-    daysPerWeek,
     splitPercent,
     fuelPrice,
     mpg,
@@ -350,7 +342,6 @@ export default function TruckingProfitCalculator({
     setLoadMiles(scenario.loadMiles);
     setLoadsPerDay(scenario.loadsPerDay);
     setMilesPerDay(scenario.milesPerDay);
-    setDaysPerWeek(scenario.daysPerWeek);
     setProjectionDaysInput(scenario.projectionDaysInput);
     setDeadheadMilesPerDay(scenario.deadheadMilesPerDay);
     setFuelPrice(scenario.fuelPrice);
@@ -370,7 +361,6 @@ export default function TruckingProfitCalculator({
 
     setRatePerMile(DEFAULTS.ratePerMile);
     setMilesPerDay(DEFAULTS.milesPerDay);
-    setDaysPerWeek(DEFAULTS.daysPerWeek);
     setSplitPercent(DEFAULTS.splitPercent);
 
     setFuelPrice(DEFAULTS.fuelPrice);
@@ -435,6 +425,7 @@ export default function TruckingProfitCalculator({
 
     const totalMilesPerDay = loadedMilesPerDay + numDeadheadMilesPerDay;
     const projectionDays = projectionMode === "single_load" ? 1 : numProjectionDays;
+
     const projectedLoadedMiles = loadedMilesPerDay * projectionDays;
     const projectedTotalMiles = totalMilesPerDay * projectionDays;
 
@@ -734,60 +725,60 @@ export default function TruckingProfitCalculator({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-  <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
-    <ToggleButton
-      active={calculatorStyle === "basic"}
-      onClick={() => setCalculatorStyle("basic")}
-    >
-      Basic style
-    </ToggleButton>
-    <ToggleButton
-      active={calculatorStyle === "advanced"}
-      onClick={() => setCalculatorStyle("advanced")}
-    >
-      Advanced style
-    </ToggleButton>
-  </div>
+            <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+              <ToggleButton
+                active={calculatorStyle === "basic"}
+                onClick={() => setCalculatorStyle("basic")}
+              >
+                Basic style
+              </ToggleButton>
+              <ToggleButton
+                active={calculatorStyle === "advanced"}
+                onClick={() => setCalculatorStyle("advanced")}
+              >
+                Advanced style
+              </ToggleButton>
+            </div>
 
-  {calculatorStyle === "advanced" && (
-    <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
-      <ToggleButton
-        active={workProfile === "owner_operator"}
-        onClick={() => setWorkProfile("owner_operator")}
-      >
-        Owner-Operator
-      </ToggleButton>
-      <ToggleButton
-        active={workProfile === "company_driver"}
-        onClick={() => setWorkProfile("company_driver")}
-      >
-        Company Driver
-      </ToggleButton>
-    </div>
-  )}
+            {calculatorStyle === "advanced" && (
+              <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                <ToggleButton
+                  active={workProfile === "owner_operator"}
+                  onClick={() => setWorkProfile("owner_operator")}
+                >
+                  Owner-Operator
+                </ToggleButton>
+                <ToggleButton
+                  active={workProfile === "company_driver"}
+                  onClick={() => setWorkProfile("company_driver")}
+                >
+                  Company Driver
+                </ToggleButton>
+              </div>
+            )}
 
-  <button
-    type="button"
-    onClick={() => setIsCalculatorLoaded(true)}
-    className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
-  >
-    Launch
-  </button>
-  <button
-    type="button"
-    onClick={() => setIsCalculatorLoaded(false)}
-    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-  >
-    Close
-  </button>
-  <button
-    type="button"
-    onClick={resetCalculator}
-    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-  >
-    Reset
-  </button>
-</div>
+            <button
+              type="button"
+              onClick={() => setIsCalculatorLoaded(true)}
+              className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+            >
+              Launch
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsCalculatorLoaded(false)}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={resetCalculator}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              Reset
+            </button>
+          </div>
         </div>
       </div>
 
@@ -807,11 +798,22 @@ export default function TruckingProfitCalculator({
           className={`min-h-screen bg-gradient-to-br ${getColor()} p-3 transition-all duration-500 sm:p-4 md:p-6`}
         >
           <div className="mx-auto max-w-sm space-y-3 px-1 sm:max-w-2xl sm:space-y-5 sm:px-0 xl:max-w-6xl">
-            
+            <div className="rounded-2xl bg-white p-4 shadow-md sm:p-5">
+              <div className="text-center sm:text-left">
+                <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                  {calculatorStyle === "basic" ? "Basic calculator" : "Advanced calculator"}
+                </h1>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  {calculatorStyle === "basic"
+                    ? "Fast calculator for quick load and pay checks."
+                    : "Expanded calculator for owner-operators and company drivers with deeper controls."}
+                </p>
+              </div>
+            </div>
 
             {calculatorStyle === "advanced" && (
               <div className="rounded-2xl bg-white p-4 shadow-md sm:p-5">
-                <div className="mt-0 grid gap-3 xl:grid-cols-4">
+                <div className="grid gap-3 xl:grid-cols-4">
                   <AlertCard tone={qualityCard.tone} title={qualityCard.title}>
                     {qualityCard.body}
                   </AlertCard>
@@ -1026,13 +1028,11 @@ export default function TruckingProfitCalculator({
                   />
 
                   <InputField
-                    label={calculatorStyle === "basic" ? "Projection days" : "Days per week"}
-                    value={calculatorStyle === "basic" ? projectionDaysInput : daysPerWeek}
-                    setValue={calculatorStyle === "basic" ? setProjectionDaysInput : setDaysPerWeek}
+                    label="Projection days"
+                    value={projectionDaysInput}
+                    setValue={setProjectionDaysInput}
                     step="1"
-                    helpText={
-                      calculatorStyle === "advanced" ? "Planning field only." : "How many days to project."
-                    }
+                    helpText="How many days to project."
                   />
 
                   {workProfile === "owner_operator" && (

@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import TruckingProfitCalculator from "./truckingProfitCalculator";
 import { supabase } from "./lib/supabase";
 
+const SESSION_CACHE_KEY = "trucking_profit_last_session_hint_v1";
+
 function AuthScreen() {
   const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
@@ -41,12 +43,24 @@ function AuthScreen() {
         setMode("login");
         setShowPassword(false);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
         if (error) throw error;
+
+        if (data?.session?.user) {
+          localStorage.setItem(
+            SESSION_CACHE_KEY,
+            JSON.stringify({
+              id: data.session.user.id,
+              email: data.session.user.email || "",
+              full_name: data.session.user.user_metadata?.full_name || "",
+              ts: Date.now(),
+            })
+          );
+        }
       }
     } catch (err) {
       setMessage(err?.message || "Something went wrong.");
@@ -197,32 +211,84 @@ function TrialWatermark() {
   );
 }
 
+function readCachedSessionHint() {
+  try {
+    const raw = localStorage.getItem(SESSION_CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedSessionHint(user) {
+  if (!user?.id) return;
+  try {
+    localStorage.setItem(
+      SESSION_CACHE_KEY,
+      JSON.stringify({
+        id: user.id,
+        email: user.email || "",
+        full_name: user.user_metadata?.full_name || "",
+        ts: Date.now(),
+      })
+    );
+  } catch {
+    // ignore
+  }
+}
+
+function clearCachedSessionHint() {
+  try {
+    localStorage.removeItem(SESSION_CACHE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export default function App() {
   const [session, setSession] = useState(null);
-  const [profile, setProfile] = useState(null);
+  const [profile, setProfile] = useState(() => {
+    const cached = readCachedSessionHint();
+    return cached
+      ? {
+          id: cached.id,
+          email: cached.email || "",
+          full_name: cached.full_name || "",
+        }
+      : null;
+  });
   const [subscription, setSubscription] = useState(null);
   const [booting, setBooting] = useState(true);
-  const [userStateLoading, setUserStateLoading] = useState(false);
   const [appError, setAppError] = useState("");
+  const [hydratingUserState, setHydratingUserState] = useState(false);
+
   const mountedRef = useRef(true);
   const requestIdRef = useRef(0);
+  const bootResolvedRef = useRef(false);
 
   const resetUserState = () => {
     setProfile(null);
     setSubscription(null);
+    clearCachedSessionHint();
+  };
+
+  const safeStopBoot = () => {
+    if (!bootResolvedRef.current && mountedRef.current) {
+      bootResolvedRef.current = true;
+      setBooting(false);
+    }
   };
 
   const loadUserState = async (user) => {
     if (!user?.id) {
-      resetUserState();
-      setUserStateLoading(false);
+      setHydratingUserState(false);
+      setSubscription(null);
       return;
     }
 
     const requestId = ++requestIdRef.current;
-
-    setUserStateLoading(true);
-    setAppError("");
+    setHydratingUserState(true);
 
     const fallbackProfile = {
       id: user.id,
@@ -230,12 +296,15 @@ export default function App() {
       full_name: user.user_metadata?.full_name || "",
     };
 
+    setProfile(fallbackProfile);
+    writeCachedSessionHint(user);
+
     try {
-      const timeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("User data request timed out.")), 10000)
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("User state sync timed out.")), 7000)
       );
 
-      const dataPromise = Promise.all([
+      const fetchPromise = Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
         supabase
           .from("subscriptions")
@@ -246,44 +315,81 @@ export default function App() {
           .maybeSingle(),
       ]);
 
-      const [profileResult, subscriptionResult] = await Promise.race([dataPromise, timeout]);
+      const [profileResult, subscriptionResult] = await Promise.race([
+        fetchPromise,
+        timeoutPromise,
+      ]);
 
       if (!mountedRef.current || requestId !== requestIdRef.current) return;
 
-      if (profileResult.error) throw profileResult.error;
-      if (subscriptionResult.error) throw subscriptionResult.error;
+      if (profileResult?.error) throw profileResult.error;
+      if (subscriptionResult?.error) throw subscriptionResult.error;
 
-      setProfile(profileResult.data || fallbackProfile);
-      setSubscription(subscriptionResult.data || null);
+      setProfile(profileResult?.data || fallbackProfile);
+      setSubscription(subscriptionResult?.data || null);
+      setAppError("");
     } catch (err) {
       if (!mountedRef.current || requestId !== requestIdRef.current) return;
 
       console.error("loadUserState error:", err);
-      setAppError(err?.message || "Failed to load user data.");
       setProfile(fallbackProfile);
       setSubscription(null);
+      setAppError(err?.message || "Failed to sync user data.");
     } finally {
       if (mountedRef.current && requestId === requestIdRef.current) {
-        setUserStateLoading(false);
+        setHydratingUserState(false);
       }
     }
   };
 
   useEffect(() => {
     mountedRef.current = true;
+    bootResolvedRef.current = false;
 
-    const init = async () => {
+    const bootTimeout = setTimeout(() => {
+      safeStopBoot();
+    }, 3500);
+
+    const {
+      data: { subscription: authListener },
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      if (!mountedRef.current) return;
+
+      setSession(newSession);
+
+      if (newSession?.user) {
+        setProfile({
+          id: newSession.user.id,
+          email: newSession.user.email || "",
+          full_name: newSession.user.user_metadata?.full_name || "",
+        });
+        writeCachedSessionHint(newSession.user);
+        loadUserState(newSession.user);
+      } else {
+        resetUserState();
+      }
+
+      safeStopBoot();
+    });
+
+    (async () => {
       try {
-        setBooting(true);
-        setAppError("");
+        const sessionTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Session bootstrap timed out.")), 3000)
+        );
+
+        const sessionFetch = supabase.auth.getSession();
+
+        const result = await Promise.race([sessionFetch, sessionTimeout]);
+
+        if (!mountedRef.current) return;
 
         const {
           data: { session },
           error,
-        } = await supabase.auth.getSession();
+        } = result;
 
         if (error) throw error;
-        if (!mountedRef.current) return;
 
         setSession(session);
 
@@ -293,47 +399,34 @@ export default function App() {
             email: session.user.email || "",
             full_name: session.user.user_metadata?.full_name || "",
           });
+          writeCachedSessionHint(session.user);
           loadUserState(session.user);
         } else {
           resetUserState();
         }
       } catch (err) {
         if (!mountedRef.current) return;
-        setAppError(err?.message || "Failed to load session.");
-        resetUserState();
+
+        console.error("Session bootstrap error:", err);
+        setAppError(err?.message || "Failed to restore session.");
       } finally {
-        if (mountedRef.current) {
-          setBooting(false);
-        }
+        safeStopBoot();
+      }
+    })();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && session?.user) {
+        loadUserState(session.user);
       }
     };
 
-    init();
-
-    const {
-      data: { subscription: authListener },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      if (!mountedRef.current) return;
-
-      setSession(newSession);
-      setAppError("");
-
-      if (newSession?.user) {
-        setProfile({
-          id: newSession.user.id,
-          email: newSession.user.email || "",
-          full_name: newSession.user.user_metadata?.full_name || "",
-        });
-        loadUserState(newSession.user);
-      } else {
-        resetUserState();
-        setUserStateLoading(false);
-      }
-    });
+    document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
       mountedRef.current = false;
+      clearTimeout(bootTimeout);
       authListener?.unsubscribe();
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, []);
 
@@ -343,7 +436,7 @@ export default function App() {
     } finally {
       setSession(null);
       resetUserState();
-      setUserStateLoading(false);
+      setHydratingUserState(false);
       setBooting(false);
     }
   };
@@ -358,11 +451,12 @@ export default function App() {
     );
   }
 
-  if (!session) {
+  if (!session && !profile) {
     return <AuthScreen />;
   }
 
   const planName = subscription?.plan_name || "trial";
+  const activeEmail = profile?.email || session?.user?.email || "Signed in user";
   const isTrial =
     subscription?.plan_name === "trial" ||
     subscription?.status === "trialing" ||
@@ -379,8 +473,8 @@ export default function App() {
               Trucking Profit Calculator
             </div>
             <div className="text-xs text-slate-500">
-              {(profile?.email || session?.user?.email || "Signed in user")} · {planName}
-              {userStateLoading ? " · syncing..." : ""}
+              {activeEmail} · {planName}
+              {hydratingUserState ? " · syncing..." : ""}
             </div>
           </div>
 

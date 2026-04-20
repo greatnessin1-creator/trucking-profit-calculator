@@ -1552,4 +1552,4 @@ export default function TruckingProfitCalculator({
       )}
     </div>
   );
-                           }
+}

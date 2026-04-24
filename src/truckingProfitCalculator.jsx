@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 
-const STORAGE_KEY = "trucking_profit_calculator_full_v1";
+const STORAGE_KEY = "trucking_profit_calculator_full_v2";
 
 const DEFAULTS = {
+  showHelp: false,
+
   workProfile: "owner_operator",
   driverMode: "solo",
+  tripMode: "daily_work",
   milesMode: "load_math",
 
   ratePerMile: 2.75,
@@ -14,6 +17,11 @@ const DEFAULTS = {
   loadsPerDay: 1,
   deadheadMilesPerDay: 50,
   projectionDays: 7,
+
+  singleLoadPayout: 1800,
+  singleLoadMiles: 600,
+  singleLoadDeadheadMiles: 75,
+  singleLoadDays: 2,
 
   splitPercent: 100,
   fuelPrice: 4.25,
@@ -102,8 +110,11 @@ const StatCard = ({ label, value, sublabel, dark = false }) => (
 );
 
 export default function TruckingProfitCalculator({ session, profile, plan }) {
+  const [showHelp, setShowHelp] = useState(DEFAULTS.showHelp);
+
   const [workProfile, setWorkProfile] = useState(DEFAULTS.workProfile);
   const [driverMode, setDriverMode] = useState(DEFAULTS.driverMode);
+  const [tripMode, setTripMode] = useState(DEFAULTS.tripMode);
   const [milesMode, setMilesMode] = useState(DEFAULTS.milesMode);
 
   const [ratePerMile, setRatePerMile] = useState(DEFAULTS.ratePerMile);
@@ -113,6 +124,13 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
   const [loadsPerDay, setLoadsPerDay] = useState(DEFAULTS.loadsPerDay);
   const [deadheadMilesPerDay, setDeadheadMilesPerDay] = useState(DEFAULTS.deadheadMilesPerDay);
   const [projectionDays, setProjectionDays] = useState(DEFAULTS.projectionDays);
+
+  const [singleLoadPayout, setSingleLoadPayout] = useState(DEFAULTS.singleLoadPayout);
+  const [singleLoadMiles, setSingleLoadMiles] = useState(DEFAULTS.singleLoadMiles);
+  const [singleLoadDeadheadMiles, setSingleLoadDeadheadMiles] = useState(
+    DEFAULTS.singleLoadDeadheadMiles
+  );
+  const [singleLoadDays, setSingleLoadDays] = useState(DEFAULTS.singleLoadDays);
 
   const [splitPercent, setSplitPercent] = useState(DEFAULTS.splitPercent);
   const [fuelPrice, setFuelPrice] = useState(DEFAULTS.fuelPrice);
@@ -138,34 +156,40 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
       if (!raw) return;
       const saved = JSON.parse(raw);
 
-      Object.entries(saved).forEach(([key, value]) => {
-        const setters = {
-          workProfile: setWorkProfile,
-          driverMode: setDriverMode,
-          milesMode: setMilesMode,
-          ratePerMile: setRatePerMile,
-          directDailyPay: setDirectDailyPay,
-          loadedMilesPerDay: setLoadedMilesPerDay,
-          loadMiles: setLoadMiles,
-          loadsPerDay: setLoadsPerDay,
-          deadheadMilesPerDay: setDeadheadMilesPerDay,
-          projectionDays: setProjectionDays,
-          splitPercent: setSplitPercent,
-          fuelPrice: setFuelPrice,
-          mpg: setMpg,
-          maintenancePerMile: setMaintenancePerMile,
-          tiresPerMile: setTiresPerMile,
-          miscPerMile: setMiscPerMile,
-          truckWeekly: setTruckWeekly,
-          trailerWeekly: setTrailerWeekly,
-          insuranceWeekly: setInsuranceWeekly,
-          otherWeekly: setOtherWeekly,
-          dispatcherPercent: setDispatcherPercent,
-          factoringPercent: setFactoringPercent,
-          reservePercent: setReservePercent,
-          taxPercent: setTaxPercent,
-        };
+      const setters = {
+        showHelp: setShowHelp,
+        workProfile: setWorkProfile,
+        driverMode: setDriverMode,
+        tripMode: setTripMode,
+        milesMode: setMilesMode,
+        ratePerMile: setRatePerMile,
+        directDailyPay: setDirectDailyPay,
+        loadedMilesPerDay: setLoadedMilesPerDay,
+        loadMiles: setLoadMiles,
+        loadsPerDay: setLoadsPerDay,
+        deadheadMilesPerDay: setDeadheadMilesPerDay,
+        projectionDays: setProjectionDays,
+        singleLoadPayout: setSingleLoadPayout,
+        singleLoadMiles: setSingleLoadMiles,
+        singleLoadDeadheadMiles: setSingleLoadDeadheadMiles,
+        singleLoadDays: setSingleLoadDays,
+        splitPercent: setSplitPercent,
+        fuelPrice: setFuelPrice,
+        mpg: setMpg,
+        maintenancePerMile: setMaintenancePerMile,
+        tiresPerMile: setTiresPerMile,
+        miscPerMile: setMiscPerMile,
+        truckWeekly: setTruckWeekly,
+        trailerWeekly: setTrailerWeekly,
+        insuranceWeekly: setInsuranceWeekly,
+        otherWeekly: setOtherWeekly,
+        dispatcherPercent: setDispatcherPercent,
+        factoringPercent: setFactoringPercent,
+        reservePercent: setReservePercent,
+        taxPercent: setTaxPercent,
+      };
 
+      Object.entries(saved).forEach(([key, value]) => {
         if (setters[key]) setters[key](value);
       });
     } catch {
@@ -177,8 +201,10 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
+        showHelp,
         workProfile,
         driverMode,
+        tripMode,
         milesMode,
         ratePerMile,
         directDailyPay,
@@ -187,6 +213,10 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
         loadsPerDay,
         deadheadMilesPerDay,
         projectionDays,
+        singleLoadPayout,
+        singleLoadMiles,
+        singleLoadDeadheadMiles,
+        singleLoadDays,
         splitPercent,
         fuelPrice,
         mpg,
@@ -204,8 +234,10 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
       })
     );
   }, [
+    showHelp,
     workProfile,
     driverMode,
+    tripMode,
     milesMode,
     ratePerMile,
     directDailyPay,
@@ -214,6 +246,10 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
     loadsPerDay,
     deadheadMilesPerDay,
     projectionDays,
+    singleLoadPayout,
+    singleLoadMiles,
+    singleLoadDeadheadMiles,
+    singleLoadDays,
     splitPercent,
     fuelPrice,
     mpg,
@@ -231,28 +267,41 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
   ]);
 
   const results = useMemo(() => {
-    const loadedMiles =
-      milesMode === "load_math"
-        ? safeNum(loadMiles) * safeNum(loadsPerDay)
-        : safeNum(loadedMilesPerDay);
+    const isSingleLoad = tripMode === "single_load";
 
-    const deadheadMiles = safeNum(deadheadMilesPerDay);
-    const totalMilesPerDay = loadedMiles + deadheadMiles;
-    const days = Math.max(safeNum(projectionDays), 1);
+    const days = isSingleLoad
+      ? Math.max(safeNum(singleLoadDays), 1)
+      : Math.max(safeNum(projectionDays), 1);
 
-    const projectedLoadedMiles = loadedMiles * days;
-    const projectedTotalMiles = totalMilesPerDay * days;
+    const loadedMiles = isSingleLoad
+      ? safeNum(singleLoadMiles)
+      : milesMode === "load_math"
+      ? safeNum(loadMiles) * safeNum(loadsPerDay)
+      : safeNum(loadedMilesPerDay);
 
-    const dailyGross =
-      safeNum(directDailyPay) > 0 ? safeNum(directDailyPay) : loadedMiles * safeNum(ratePerMile);
+    const deadheadMiles = isSingleLoad
+      ? safeNum(singleLoadDeadheadMiles)
+      : safeNum(deadheadMilesPerDay);
 
-    const projectedGross = dailyGross * days;
+    const totalMiles = loadedMiles + deadheadMiles;
+
+    const loadedMilesPerWorkDay = loadedMiles / days;
+    const totalMilesPerWorkDay = totalMiles / days;
+
+    const gross = isSingleLoad
+      ? safeNum(singleLoadPayout)
+      : safeNum(directDailyPay) > 0
+      ? safeNum(directDailyPay) * days
+      : loadedMiles * safeNum(ratePerMile) * days;
+
+    const dailyGross = gross / days;
 
     const split = workProfile === "owner_operator" ? safeNum(splitPercent) / 100 : 1;
-    const dailyAfterSplit = dailyGross * split;
-    const projectedAfterSplit = projectedGross * split;
+    const afterSplit = gross * split;
+    const dailyAfterSplit = afterSplit / days;
 
     const fuelCostPerMile = safeNum(fuelPrice) / Math.max(safeNum(mpg), 0.1);
+
     const variableCostPerMile =
       workProfile === "owner_operator"
         ? fuelCostPerMile +
@@ -261,17 +310,8 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
           safeNum(miscPerMile)
         : 0;
 
-    const dailyFuelCost =
-      workProfile === "owner_operator" ? totalMilesPerDay * fuelCostPerMile : 0;
-
-    const projectedFuelCost =
-      workProfile === "owner_operator" ? projectedTotalMiles * fuelCostPerMile : 0;
-
-    const dailyVariableCost =
-      workProfile === "owner_operator" ? totalMilesPerDay * variableCostPerMile : 0;
-
-    const projectedVariableCost =
-      workProfile === "owner_operator" ? projectedTotalMiles * variableCostPerMile : 0;
+    const fuelCost = workProfile === "owner_operator" ? totalMiles * fuelCostPerMile : 0;
+    const variableCost = workProfile === "owner_operator" ? totalMiles * variableCostPerMile : 0;
 
     const weeklyFixedCost =
       workProfile === "owner_operator"
@@ -281,58 +321,50 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
           safeNum(otherWeekly)
         : 0;
 
-    const fixedDailyCost = weeklyFixedCost / 7;
-    const projectedFixedCost = fixedDailyCost * days;
+    const fixedCost = workProfile === "owner_operator" ? (weeklyFixedCost / 7) * days : 0;
 
-    const dispatcherCost = projectedGross * (safeNum(dispatcherPercent) / 100);
-    const factoringCost = projectedGross * (safeNum(factoringPercent) / 100);
-    const reserveCost = projectedGross * (safeNum(reservePercent) / 100);
+    const dispatcherCost =
+      workProfile === "owner_operator" ? gross * (safeNum(dispatcherPercent) / 100) : 0;
 
-    const extraPercentageCosts =
-      workProfile === "owner_operator" ? dispatcherCost + factoringCost + reserveCost : 0;
+    const factoringCost =
+      workProfile === "owner_operator" ? gross * (safeNum(factoringPercent) / 100) : 0;
 
-    const projectedTotalCost =
-      projectedVariableCost + projectedFixedCost + extraPercentageCosts;
+    const reserveCost =
+      workProfile === "owner_operator" ? gross * (safeNum(reservePercent) / 100) : 0;
 
-    const projectedNetBeforeTax = projectedAfterSplit - projectedTotalCost;
-    const dailyNetBeforeTax = projectedNetBeforeTax / days;
+    const totalCost = variableCost + fixedCost + dispatcherCost + factoringCost + reserveCost;
+
+    const netBeforeTax = afterSplit - totalCost;
+    const dailyNetBeforeTax = netBeforeTax / days;
 
     const driverCount = driverMode === "team" && workProfile === "owner_operator" ? 2 : 1;
 
-    const projectedPerDriverBeforeTax = projectedNetBeforeTax / driverCount;
-    const dailyPerDriverBeforeTax = dailyNetBeforeTax / driverCount;
+    const perDriverBeforeTax = netBeforeTax / driverCount;
+    const dailyPerDriverBeforeTax = perDriverBeforeTax / days;
 
-    const projectedAfterTax =
-      projectedPerDriverBeforeTax * (1 - safeNum(taxPercent) / 100);
+    const afterTax = perDriverBeforeTax * (1 - safeNum(taxPercent) / 100);
+    const dailyAfterTax = afterTax / days;
 
-    const dailyAfterTax = projectedAfterTax / days;
+    const netPerLoadedMile = loadedMiles > 0 ? perDriverBeforeTax / loadedMiles : 0;
+    const afterTaxPerLoadedMile = loadedMiles > 0 ? afterTax / loadedMiles : 0;
 
-    const netPerLoadedMile =
-      projectedLoadedMiles > 0 ? projectedPerDriverBeforeTax / projectedLoadedMiles : 0;
-
-    const afterTaxPerLoadedMile =
-      projectedLoadedMiles > 0 ? projectedAfterTax / projectedLoadedMiles : 0;
-
-    const deadheadPercent =
-      totalMilesPerDay > 0 ? (deadheadMiles / totalMilesPerDay) * 100 : 0;
+    const deadheadPercent = totalMiles > 0 ? (deadheadMiles / totalMiles) * 100 : 0;
 
     const breakEvenRate =
-      workProfile === "owner_operator" && projectedLoadedMiles > 0
-        ? projectedTotalCost / projectedLoadedMiles / Math.max(split, 0.01)
+      workProfile === "owner_operator" && loadedMiles > 0
+        ? totalCost / loadedMiles / Math.max(split, 0.01)
         : 0;
 
-    const monthlyAfterTax = projectedAfterTax * 4.33;
-    const yearlyAfterTax = projectedAfterTax * 52;
+    const monthlyAfterTax = afterTax * 4.33;
+    const yearlyAfterTax = afterTax * 52;
 
     const tierRows = [75, 82, 88, 92].map((pct) => {
       const tierSplit = pct / 100;
-      const tierRevenue = projectedGross * tierSplit;
-      const tierNet = tierRevenue - projectedTotalCost;
+      const tierRevenue = gross * tierSplit;
+      const tierNet = tierRevenue - totalCost;
       const tierPerDriver = driverMode === "team" ? tierNet / 2 : tierNet;
       const tierBreakEven =
-        projectedLoadedMiles > 0
-          ? projectedTotalCost / projectedLoadedMiles / Math.max(tierSplit, 0.01)
-          : 0;
+        loadedMiles > 0 ? totalCost / loadedMiles / Math.max(tierSplit, 0.01) : 0;
 
       return {
         pct,
@@ -344,32 +376,31 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
     });
 
     return {
+      days,
       loadedMiles,
       deadheadMiles,
-      totalMilesPerDay,
-      projectedLoadedMiles,
-      projectedTotalMiles,
+      totalMiles,
+      loadedMilesPerWorkDay,
+      totalMilesPerWorkDay,
+      gross,
       dailyGross,
-      projectedGross,
+      afterSplit,
       dailyAfterSplit,
-      projectedAfterSplit,
       fuelCostPerMile,
-      dailyFuelCost,
-      projectedFuelCost,
+      fuelCost,
       variableCostPerMile,
-      projectedVariableCost,
+      variableCost,
       weeklyFixedCost,
-      fixedDailyCost,
-      projectedFixedCost,
+      fixedCost,
       dispatcherCost,
       factoringCost,
       reserveCost,
-      projectedTotalCost,
-      projectedNetBeforeTax,
+      totalCost,
+      netBeforeTax,
       dailyNetBeforeTax,
-      projectedPerDriverBeforeTax,
+      perDriverBeforeTax,
       dailyPerDriverBeforeTax,
-      projectedAfterTax,
+      afterTax,
       dailyAfterTax,
       netPerLoadedMile,
       afterTaxPerLoadedMile,
@@ -382,6 +413,7 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
   }, [
     workProfile,
     driverMode,
+    tripMode,
     milesMode,
     ratePerMile,
     directDailyPay,
@@ -390,6 +422,10 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
     loadsPerDay,
     deadheadMilesPerDay,
     projectionDays,
+    singleLoadPayout,
+    singleLoadMiles,
+    singleLoadDeadheadMiles,
+    singleLoadDays,
     splitPercent,
     fuelPrice,
     mpg,
@@ -407,34 +443,40 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
   ]);
 
   const resetCalculator = () => {
-    Object.entries(DEFAULTS).forEach(([key, value]) => {
-      const setters = {
-        workProfile: setWorkProfile,
-        driverMode: setDriverMode,
-        milesMode: setMilesMode,
-        ratePerMile: setRatePerMile,
-        directDailyPay: setDirectDailyPay,
-        loadedMilesPerDay: setLoadedMilesPerDay,
-        loadMiles: setLoadMiles,
-        loadsPerDay: setLoadsPerDay,
-        deadheadMilesPerDay: setDeadheadMilesPerDay,
-        projectionDays: setProjectionDays,
-        splitPercent: setSplitPercent,
-        fuelPrice: setFuelPrice,
-        mpg: setMpg,
-        maintenancePerMile: setMaintenancePerMile,
-        tiresPerMile: setTiresPerMile,
-        miscPerMile: setMiscPerMile,
-        truckWeekly: setTruckWeekly,
-        trailerWeekly: setTrailerWeekly,
-        insuranceWeekly: setInsuranceWeekly,
-        otherWeekly: setOtherWeekly,
-        dispatcherPercent: setDispatcherPercent,
-        factoringPercent: setFactoringPercent,
-        reservePercent: setReservePercent,
-        taxPercent: setTaxPercent,
-      };
+    const setters = {
+      showHelp: setShowHelp,
+      workProfile: setWorkProfile,
+      driverMode: setDriverMode,
+      tripMode: setTripMode,
+      milesMode: setMilesMode,
+      ratePerMile: setRatePerMile,
+      directDailyPay: setDirectDailyPay,
+      loadedMilesPerDay: setLoadedMilesPerDay,
+      loadMiles: setLoadMiles,
+      loadsPerDay: setLoadsPerDay,
+      deadheadMilesPerDay: setDeadheadMilesPerDay,
+      projectionDays: setProjectionDays,
+      singleLoadPayout: setSingleLoadPayout,
+      singleLoadMiles: setSingleLoadMiles,
+      singleLoadDeadheadMiles: setSingleLoadDeadheadMiles,
+      singleLoadDays: setSingleLoadDays,
+      splitPercent: setSplitPercent,
+      fuelPrice: setFuelPrice,
+      mpg: setMpg,
+      maintenancePerMile: setMaintenancePerMile,
+      tiresPerMile: setTiresPerMile,
+      miscPerMile: setMiscPerMile,
+      truckWeekly: setTruckWeekly,
+      trailerWeekly: setTrailerWeekly,
+      insuranceWeekly: setInsuranceWeekly,
+      otherWeekly: setOtherWeekly,
+      dispatcherPercent: setDispatcherPercent,
+      factoringPercent: setFactoringPercent,
+      reservePercent: setReservePercent,
+      taxPercent: setTaxPercent,
+    };
 
+    Object.entries(DEFAULTS).forEach(([key, value]) => {
       if (setters[key]) setters[key](value);
     });
 
@@ -442,9 +484,9 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
   };
 
   const bgColor =
-    results.projectedAfterTax <= 0
+    results.afterTax <= 0
       ? "from-red-500 via-rose-500 to-red-700"
-      : results.projectedAfterTax < 1000
+      : results.afterTax < 1000
       ? "from-amber-400 via-orange-400 to-orange-500"
       : "from-emerald-400 via-green-400 to-teal-500";
 
@@ -458,20 +500,30 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
                 Trucking Profit Calculator
               </h1>
               <p className="mt-1 text-sm text-slate-500">
-                Owner-operator and company driver profit calculator.
+                Calculate daily work or one load spread across multiple days.
               </p>
               <p className="mt-1 text-xs text-slate-400">
                 {profile?.email || session?.user?.email || "Driver"} · {plan || "basic"}
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={resetCalculator}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-            >
-              Reset
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setShowHelp((prev) => !prev)}
+                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90"
+              >
+                {showHelp ? "Hide Help" : "How to Use"}
+              </button>
+
+              <button
+                type="button"
+                onClick={resetCalculator}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+              >
+                Reset
+              </button>
+            </div>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
@@ -490,6 +542,21 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
               </ToggleButton>
             </div>
 
+            <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+              <ToggleButton
+                active={tripMode === "daily_work"}
+                onClick={() => setTripMode("daily_work")}
+              >
+                Daily Work
+              </ToggleButton>
+              <ToggleButton
+                active={tripMode === "single_load"}
+                onClick={() => setTripMode("single_load")}
+              >
+                Single Load
+              </ToggleButton>
+            </div>
+
             {workProfile === "owner_operator" && (
               <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
                 <ToggleButton active={driverMode === "solo"} onClick={() => setDriverMode("solo")}>
@@ -501,105 +568,195 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
               </div>
             )}
 
-            <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
-              <ToggleButton
-                active={milesMode === "load_math"}
-                onClick={() => setMilesMode("load_math")}
-              >
-                Load Math
-              </ToggleButton>
-              <ToggleButton
-                active={milesMode === "manual"}
-                onClick={() => setMilesMode("manual")}
-              >
-                Manual Miles
-              </ToggleButton>
-            </div>
+            {tripMode === "daily_work" && (
+              <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                <ToggleButton
+                  active={milesMode === "load_math"}
+                  onClick={() => setMilesMode("load_math")}
+                >
+                  Load Math
+                </ToggleButton>
+                <ToggleButton
+                  active={milesMode === "manual"}
+                  onClick={() => setMilesMode("manual")}
+                >
+                  Manual Miles
+                </ToggleButton>
+              </div>
+            )}
           </div>
         </div>
+
+        {showHelp && (
+          <div className="rounded-2xl bg-white p-4 shadow-md sm:p-5">
+            <h2 className="text-lg font-bold text-slate-900">How to Use This Calculator</h2>
+
+            <div className="mt-3 grid gap-3 text-sm leading-6 text-slate-700 md:grid-cols-2">
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <div className="font-bold text-slate-900">1. Choose your profile</div>
+                <p className="mt-1">
+                  Use <b>Owner-Operator</b> if you pay truck costs, fuel, insurance, dispatch,
+                  factoring, maintenance, or reserves. Use <b>Company Driver</b> if you only want
+                  driver earnings.
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <div className="font-bold text-slate-900">2. Choose the trip type</div>
+                <p className="mt-1">
+                  Use <b>Daily Work</b> when you run similar work each day. Use <b>Single Load</b>{" "}
+                  when one load takes 1, 2, 3, or more days.
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <div className="font-bold text-slate-900">3. Loaded vs deadhead miles</div>
+                <p className="mt-1">
+                  Loaded miles are paid freight miles. Deadhead miles are unpaid empty miles. Both
+                  affect fuel and cost.
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <div className="font-bold text-slate-900">4. Single Load mode</div>
+                <p className="mt-1">
+                  Enter total load payout, total loaded miles, total deadhead miles, and how many
+                  days the load takes. The app breaks it down per day.
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <div className="font-bold text-slate-900">5. Owner-operator costs</div>
+                <p className="mt-1">
+                  Add fuel, MPG, maintenance per mile, tire cost, weekly truck cost, insurance,
+                  dispatch, factoring, and reserve percentage.
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <div className="font-bold text-slate-900">6. Read the main result</div>
+                <p className="mt-1">
+                  Focus on <b>After Tax</b>, <b>Daily After Tax</b>, <b>Break-even Rate</b>, and{" "}
+                  <b>Profit Per Loaded Mile</b>. Gross revenue alone can be misleading.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             dark
-            label="Projected after tax"
-            value={fmt(results.projectedAfterTax)}
-            sublabel={`${projectionDays} day projection`}
+            label="After tax"
+            value={fmt(results.afterTax)}
+            sublabel={`${results.days} day${results.days === 1 ? "" : "s"} total`}
           />
           <StatCard
             label="Daily after tax"
             value={fmt(results.dailyAfterTax)}
-            sublabel="Estimated take-home"
+            sublabel="Estimated take-home per day"
           />
           <StatCard
             label="Net before tax"
-            value={fmt(results.projectedPerDriverBeforeTax)}
+            value={fmt(results.perDriverBeforeTax)}
             sublabel={`${fmt(results.netPerLoadedMile)}/loaded mile`}
           />
           <StatCard
             label="Break-even"
-            value={
-              workProfile === "owner_operator"
-                ? `${fmt(results.breakEvenRate)}/mi`
-                : "N/A"
-            }
+            value={workProfile === "owner_operator" ? `${fmt(results.breakEvenRate)}/mi` : "N/A"}
             sublabel="Owner-op only"
           />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-2xl bg-white p-4 shadow-md sm:p-5">
-            <h2 className="text-lg font-bold text-slate-900">Revenue + Miles</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              {tripMode === "single_load" ? "Single Load Details" : "Revenue + Miles"}
+            </h2>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <InputField
-                label={workProfile === "company_driver" ? "Pay per mile" : "Rate per mile"}
-                value={ratePerMile}
-                setValue={setRatePerMile}
-              />
-              <InputField
-                label="Direct daily pay / payout"
-                value={directDailyPay}
-                setValue={setDirectDailyPay}
-                helpText="If above 0, this overrides rate × loaded miles."
-              />
-
-              {milesMode === "load_math" ? (
+              {tripMode === "single_load" ? (
                 <>
                   <InputField
-                    label="Miles per load"
-                    value={loadMiles}
-                    setValue={setLoadMiles}
+                    label="Total load payout"
+                    value={singleLoadPayout}
+                    setValue={setSingleLoadPayout}
+                    helpText="Total pay for this one load."
+                  />
+                  <InputField
+                    label="Loaded miles for load"
+                    value={singleLoadMiles}
+                    setValue={setSingleLoadMiles}
                     step="1"
                   />
                   <InputField
-                    label="Loads per day"
-                    value={loadsPerDay}
-                    setValue={setLoadsPerDay}
+                    label="Deadhead miles for load"
+                    value={singleLoadDeadheadMiles}
+                    setValue={setSingleLoadDeadheadMiles}
                     step="1"
+                  />
+                  <InputField
+                    label="Days to complete load"
+                    value={singleLoadDays}
+                    setValue={setSingleLoadDays}
+                    step="1"
+                    min="1"
+                    helpText="Use 2 or 3 if the load takes multiple days."
                   />
                 </>
               ) : (
-                <InputField
-                  label="Loaded miles per day"
-                  value={loadedMilesPerDay}
-                  setValue={setLoadedMilesPerDay}
-                  step="1"
-                />
-              )}
+                <>
+                  <InputField
+                    label={workProfile === "company_driver" ? "Pay per mile" : "Rate per mile"}
+                    value={ratePerMile}
+                    setValue={setRatePerMile}
+                  />
+                  <InputField
+                    label="Direct daily pay / payout"
+                    value={directDailyPay}
+                    setValue={setDirectDailyPay}
+                    helpText="If above 0, overrides rate × loaded miles."
+                  />
 
-              <InputField
-                label="Deadhead miles per day"
-                value={deadheadMilesPerDay}
-                setValue={setDeadheadMilesPerDay}
-                step="1"
-              />
-              <InputField
-                label="Projection days"
-                value={projectionDays}
-                setValue={setProjectionDays}
-                step="1"
-                min="1"
-              />
+                  {milesMode === "load_math" ? (
+                    <>
+                      <InputField
+                        label="Miles per load"
+                        value={loadMiles}
+                        setValue={setLoadMiles}
+                        step="1"
+                      />
+                      <InputField
+                        label="Loads per day"
+                        value={loadsPerDay}
+                        setValue={setLoadsPerDay}
+                        step="1"
+                      />
+                    </>
+                  ) : (
+                    <InputField
+                      label="Loaded miles per day"
+                      value={loadedMilesPerDay}
+                      setValue={setLoadedMilesPerDay}
+                      step="1"
+                    />
+                  )}
+
+                  <InputField
+                    label="Deadhead miles per day"
+                    value={deadheadMilesPerDay}
+                    setValue={setDeadheadMilesPerDay}
+                    step="1"
+                  />
+                  <InputField
+                    label="Projection days"
+                    value={projectionDays}
+                    setValue={setProjectionDays}
+                    step="1"
+                    min="1"
+                  />
+                </>
+              )}
 
               {workProfile === "owner_operator" && (
                 <InputField
@@ -626,9 +783,8 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
 
             {workProfile === "company_driver" ? (
               <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-                Company driver mode excludes truck payments, repairs, insurance, trailer,
-                dispatch, and factoring. It focuses on driver earnings from pay-per-mile
-                or direct daily pay.
+                Company driver mode excludes truck payments, repairs, insurance, trailer, dispatch,
+                factoring, and reserves. It focuses on driver earnings.
               </div>
             ) : (
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -643,22 +799,9 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
                   value={maintenancePerMile}
                   setValue={setMaintenancePerMile}
                 />
-                <InputField
-                  label="Tires per mile"
-                  value={tiresPerMile}
-                  setValue={setTiresPerMile}
-                />
-                <InputField
-                  label="Misc per mile"
-                  value={miscPerMile}
-                  setValue={setMiscPerMile}
-                />
-                <InputField
-                  label="Truck weekly"
-                  value={truckWeekly}
-                  setValue={setTruckWeekly}
-                  step="1"
-                />
+                <InputField label="Tires per mile" value={tiresPerMile} setValue={setTiresPerMile} />
+                <InputField label="Misc per mile" value={miscPerMile} setValue={setMiscPerMile} />
+                <InputField label="Truck weekly" value={truckWeekly} setValue={setTruckWeekly} step="1" />
                 <InputField
                   label="Trailer weekly"
                   value={trailerWeekly}
@@ -705,17 +848,17 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
             <h2 className="text-lg font-bold text-slate-900">Miles</h2>
             <div className="mt-4 space-y-3 text-sm text-slate-700">
               <div className="flex justify-between">
-                <span>Loaded miles/day</span>
+                <span>Loaded miles</span>
                 <span className="font-semibold">{results.loadedMiles.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span>Total miles/day</span>
-                <span className="font-semibold">{results.totalMilesPerDay.toLocaleString()}</span>
+                <span>Total miles</span>
+                <span className="font-semibold">{results.totalMiles.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span>Projected loaded miles</span>
+                <span>Loaded miles/day</span>
                 <span className="font-semibold">
-                  {results.projectedLoadedMiles.toLocaleString()}
+                  {results.loadedMilesPerWorkDay.toFixed(1)}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -729,20 +872,20 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
             <h2 className="text-lg font-bold text-slate-900">Revenue</h2>
             <div className="mt-4 space-y-3 text-sm text-slate-700">
               <div className="flex justify-between">
+                <span>Total gross</span>
+                <span className="font-semibold">{fmt(results.gross)}</span>
+              </div>
+              <div className="flex justify-between">
                 <span>Daily gross</span>
                 <span className="font-semibold">{fmt(results.dailyGross)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Projected gross</span>
-                <span className="font-semibold">{fmt(results.projectedGross)}</span>
-              </div>
-              <div className="flex justify-between">
                 <span>After split</span>
-                <span className="font-semibold">{fmt(results.projectedAfterSplit)}</span>
+                <span className="font-semibold">{fmt(results.afterSplit)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Projected net</span>
-                <span className="font-semibold">{fmt(results.projectedNetBeforeTax)}</span>
+                <span>Net before tax</span>
+                <span className="font-semibold">{fmt(results.netBeforeTax)}</span>
               </div>
             </div>
           </div>
@@ -759,12 +902,12 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
                 <span className="font-semibold">{fmt(results.variableCostPerMile)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Projected fuel</span>
-                <span className="font-semibold">{fmt(results.projectedFuelCost)}</span>
+                <span>Fuel cost</span>
+                <span className="font-semibold">{fmt(results.fuelCost)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Total projected cost</span>
-                <span className="font-semibold">{fmt(results.projectedTotalCost)}</span>
+                <span>Total cost</span>
+                <span className="font-semibold">{fmt(results.totalCost)}</span>
               </div>
             </div>
           </div>
@@ -778,7 +921,7 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
               {results.tierRows.map((row) => (
                 <div key={row.pct} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div className="text-sm font-bold text-slate-900">{row.pct}% split</div>
-                  <div className="mt-2 text-xs text-slate-500">Projected per driver</div>
+                  <div className="mt-2 text-xs text-slate-500">Per driver before tax</div>
                   <div className="text-xl font-bold text-slate-900">{fmt(row.tierPerDriver)}</div>
                   <div className="mt-2 text-xs text-slate-500">
                     Break-even: {fmt(row.tierBreakEven)}/mi
@@ -791,8 +934,8 @@ export default function TruckingProfitCalculator({ session, profile, plan }) {
 
         <div className="rounded-2xl bg-white/90 p-4 text-sm leading-6 text-slate-600 shadow-md">
           Estimate only. Real trucking numbers can change from downtime, repairs, fuel,
-          settlement deductions, insurance, escrow, dispatch, factoring, taxes, tolls,
-          permits, maintenance, and contract terms.
+          settlement deductions, insurance, escrow, dispatch, factoring, taxes, tolls, permits,
+          maintenance, and contract terms.
         </div>
       </div>
     </div>
